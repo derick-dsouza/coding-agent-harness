@@ -170,14 +170,24 @@ After thorough verification:
    [commit hash and message]
    ```
 
-2. **Update status** using `mcp__linear__update_issue`:
+2. **Update status and add audit label** using `mcp__linear__update_issue`:
    - Set `status` to "Done"
+   - Add label `"awaiting-audit"`
+
+**IMPORTANT: The "awaiting-audit" label**
+
+This label signals that you've completed and self-tested the feature,
+but it hasn't been audited yet by the quality assurance agent. Every
+~10 features, an Opus audit session will review all features with this
+label and either approve them (changing label to "audited") or create
+[FIX] issues for any bugs found.
 
 **ONLY update status to Done AFTER:**
 - All test steps in the issue description pass
 - Visual verification via screenshots
 - No console errors
 - Code committed to git
+- Feature works end-to-end in the browser
 
 ### STEP 10: COMMIT YOUR PROGRESS
 
@@ -235,7 +245,15 @@ Before context fills up:
 **Status Transitions:**
 - Todo → In Progress (when you start working)
 - In Progress → Done (when verified complete)
-- Done → In Progress (only if regression found)
+- Done → In Progress (only if regression found during audit)
+
+**Label Workflow (New - Audit System):**
+- When marking issue "Done", add label "awaiting-audit"
+- Audit agent will review and either:
+  - Approve: Remove "awaiting-audit", add "audited"
+  - Find bugs: Set to "In Progress", create [FIX] issues
+- [FIX] issues created by audit also get "awaiting-audit" when done
+- This ensures continuous quality verification
 
 **Comments Are Your Memory:**
 - Every implementation gets a detailed comment
@@ -248,6 +266,7 @@ Before context fills up:
 - Work on issues already "In Progress" by someone else
 - Mark "Done" without verification
 - Leave issues "In Progress" when switching to another issue
+- Forget to add "awaiting-audit" label when marking Done
 
 ---
 

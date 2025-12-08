@@ -59,7 +59,21 @@ Before creating issues, you need to set up Linear:
 
    Save the returned project ID - you'll use it when creating issues.
 
-3. **IMMEDIATELY save partial state (before creating issues):**
+3. **Create audit workflow labels:**
+   Create these labels for the audit system using `mcp__linear__create_label`:
+   - `awaiting-audit`: Features completed but not yet reviewed
+   - `audited`: Features that passed audit review
+   - `fix`: Issues created by audit agent for bugs
+   - `audit-finding`: Bugs found during audit
+   - `critical-fix-applied`: Critical issues fixed during audit
+   - `has-bugs`: Features with known bugs awaiting fixes
+   - `refactor`: Code quality improvements
+   - `systemic`: Issues affecting multiple features
+
+   These labels enable the periodic audit system where Opus reviews
+   batches of completed work for quality assurance.
+
+4. **IMMEDIATELY save partial state (before creating issues):**
    Create `.linear_project.json` right away with `"initialized": false`:
    ```json
    {
@@ -69,7 +83,8 @@ Before creating issues, you need to set up Linear:
      "project_id": "[ID of the Linear project you created]",
      "project_name": "[Name of the project from app_spec.txt]",
      "issues_created": 0,
-     "notes": "Project created, issues pending"
+     "audits_completed": 0,
+     "notes": "Project created, labels set up, issues pending"
    }
    ```
    This ensures that if the session crashes, the next run won't create duplicates.
@@ -142,15 +157,40 @@ Create a special issue titled "[META] Project Progress Tracker" with:
 [Copy the project name and brief overview from app_spec.txt]
 
 ## Session Tracking
-This issue is used for session handoff between coding agents.
-Each agent should add a comment summarizing their session.
+This issue is used for session handoff between agents.
+Each agent (coding and audit) should add a comment summarizing their session.
+
+## Quality Assurance System
+
+This project uses a periodic audit system for quality assurance:
+
+**Workflow:**
+1. Coding agents implement features and mark them "Done [awaiting-audit]"
+2. Every ~10 features, an Opus audit agent reviews all pending work
+3. Audit agent either approves (label → "audited") or creates [FIX] issues
+4. Coding agents fix bugs, and fixes get re-audited in the next cycle
+
+**Labels:**
+- `awaiting-audit`: Completed but not yet reviewed
+- `audited`: Passed quality review
+- `fix`: Bug found during audit
+- `audit-finding`: Issues identified in audit sessions
+- `has-bugs`: Features awaiting bug fixes
+
+**Benefits:**
+- High quality (Opus reviews all work)
+- Cost effective (batch review vs per-feature)
+- No throughput penalty (async review)
+- Continuous improvement (audit findings teach better patterns)
 
 ## Key Milestones
 - [ ] Project setup complete
 - [ ] Core infrastructure working
+- [ ] First audit completed (10 features)
 - [ ] Primary features implemented
+- [ ] Second audit completed (20 features)
 - [ ] All features complete
-- [ ] Polish and refinement done
+- [ ] Final audit and polish done
 
 ## Notes
 [Any important context about the project]
