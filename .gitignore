@@ -7,3 +7,5 @@ logs/
 .env
 venv
 __pycache__
+.DS_Store
+claude_clone.db
