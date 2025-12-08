@@ -9,11 +9,11 @@ import asyncio
 from pathlib import Path
 from typing import Optional
 
-from claude_code_sdk import ClaudeSDKClient
+from claude_agent_sdk import ClaudeSDKClient
 
 from client import create_client
 from progress import print_session_header, print_progress_summary, is_linear_initialized
-from prompts import get_initializer_prompt, get_coding_prompt, copy_spec_to_project
+from prompts import get_initializer_prompt, get_coding_prompt
 
 
 # Configuration
@@ -96,6 +96,7 @@ async def run_agent_session(
 
 async def run_autonomous_agent(
     project_dir: Path,
+    spec_file: Path,
     model: str,
     max_iterations: Optional[int] = None,
 ) -> None:
@@ -104,6 +105,7 @@ async def run_autonomous_agent(
 
     Args:
         project_dir: Directory for the project
+        spec_file: Path to spec file relative to project_dir
         model: Claude model to use
         max_iterations: Maximum number of iterations (None for unlimited)
     """
@@ -111,15 +113,13 @@ async def run_autonomous_agent(
     print("  AUTONOMOUS CODING AGENT DEMO")
     print("=" * 70)
     print(f"\nProject directory: {project_dir}")
+    print(f"Spec file: {spec_file}")
     print(f"Model: {model}")
     if max_iterations:
         print(f"Max iterations: {max_iterations}")
     else:
         print("Max iterations: Unlimited (will run until completion)")
     print()
-
-    # Create project directory
-    project_dir.mkdir(parents=True, exist_ok=True)
 
     # Check if this is a fresh start or continuation
     # We use .linear_project.json as the marker for initialization
@@ -134,8 +134,6 @@ async def run_autonomous_agent(
         print("  This may appear to hang - it's working. Watch for [Tool: ...] output.")
         print("=" * 70)
         print()
-        # Copy the app spec into the project directory for the agent to read
-        copy_spec_to_project(project_dir)
     else:
         print("Continuing existing project (Linear initialized)")
         print_progress_summary(project_dir)
@@ -160,10 +158,10 @@ async def run_autonomous_agent(
 
         # Choose prompt based on session type
         if is_first_run:
-            prompt = get_initializer_prompt()
+            prompt = get_initializer_prompt(spec_file)
             is_first_run = False  # Only use initializer once
         else:
-            prompt = get_coding_prompt()
+            prompt = get_coding_prompt(spec_file)
 
         # Run session with async context manager
         async with client:

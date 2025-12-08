@@ -33,17 +33,17 @@ def parse_args() -> argparse.Namespace:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  # Start fresh project
-  python autonomous_agent_demo.py --project-dir ./claude_clone
+  # Run on a project with app_spec.txt in it
+  python autonomous_agent_demo.py --project-dir /path/to/my-project
+
+  # Use a custom spec file name
+  python autonomous_agent_demo.py --project-dir /path/to/my-project --spec-file requirements.txt
 
   # Use a specific model
-  python autonomous_agent_demo.py --project-dir ./claude_clone --model claude-sonnet-4-5-20250929
+  python autonomous_agent_demo.py --project-dir /path/to/my-project --model claude-sonnet-4-5-20250929
 
   # Limit iterations for testing
-  python autonomous_agent_demo.py --project-dir ./claude_clone --max-iterations 5
-
-  # Continue existing project
-  python autonomous_agent_demo.py --project-dir ./claude_clone
+  python autonomous_agent_demo.py --project-dir /path/to/my-project --max-iterations 5
 
 Environment Variables:
   CLAUDE_CODE_OAUTH_TOKEN    Claude Code OAuth token (required)
@@ -54,8 +54,8 @@ Environment Variables:
     parser.add_argument(
         "--project-dir",
         type=Path,
-        default=Path("./autonomous_demo_project"),
-        help="Directory for the project (default: generations/autonomous_demo_project). Relative paths automatically placed in generations/ directory.",
+        default=Path("."),
+        help="Directory for the project (default: current directory). Must exist and contain the spec file.",
     )
 
     parser.add_argument(
@@ -70,6 +70,13 @@ Environment Variables:
         type=str,
         default=DEFAULT_MODEL,
         help=f"Claude model to use (default: {DEFAULT_MODEL})",
+    )
+
+    parser.add_argument(
+        "--spec-file",
+        type=Path,
+        default=Path("app_spec.txt"),
+        help="Path to spec file relative to project directory (default: app_spec.txt)",
     )
 
     return parser.parse_args()
@@ -95,22 +102,41 @@ def main() -> None:
         print("  export LINEAR_API_KEY='lin_api_xxxxxxxxxxxxx'")
         return
 
-    # Automatically place projects in generations/ directory unless already specified
+    # Resolve project directory
     project_dir = args.project_dir
-    if not str(project_dir).startswith("generations/"):
-        # Convert relative paths to be under generations/
-        if project_dir.is_absolute():
-            # If absolute path, use as-is
-            pass
-        else:
-            # Prepend generations/ to relative paths
-            project_dir = Path("generations") / project_dir
+    if not project_dir.is_absolute():
+        # Use current working directory as base for relative paths
+        project_dir = Path.cwd() / project_dir
+
+    # FAIL FAST: Validate project directory exists
+    if not project_dir.exists():
+        print(f"Error: Project directory does not exist: {project_dir}")
+        print("\nCreate the directory first:")
+        print(f"  mkdir -p {project_dir}")
+        return
+
+    if not project_dir.is_dir():
+        print(f"Error: Project path is not a directory: {project_dir}")
+        return
+
+    # FAIL FAST: Validate spec file exists
+    spec_file = project_dir / args.spec_file
+    if not spec_file.exists():
+        print(f"Error: Spec file not found: {spec_file}")
+        print("\nCreate a spec file with your project requirements.")
+        print("See prompts/app_spec.txt for an example format.")
+        return
+
+    if not spec_file.is_file():
+        print(f"Error: Spec path is not a file: {spec_file}")
+        return
 
     # Run the agent
     try:
         asyncio.run(
             run_autonomous_agent(
                 project_dir=project_dir,
+                spec_file=args.spec_file,
                 model=args.model,
                 max_iterations=args.max_iterations,
             )

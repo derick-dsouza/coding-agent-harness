@@ -5,33 +5,48 @@ Prompt Loading Utilities
 Functions for loading prompt templates from the prompts directory.
 """
 
-import shutil
 from pathlib import Path
 
 
 PROMPTS_DIR = Path(__file__).parent / "prompts"
 
+# Default spec file name used in prompt templates
+DEFAULT_SPEC_FILE = "app_spec.txt"
 
-def load_prompt(name: str) -> str:
-    """Load a prompt template from the prompts directory."""
+
+def load_prompt(name: str, spec_file: Path | None = None) -> str:
+    """Load a prompt template from the prompts directory.
+
+    Args:
+        name: Name of the prompt template (without .md extension)
+        spec_file: Optional spec file path to substitute in the template
+
+    Returns:
+        The prompt template with spec file name substituted
+    """
     prompt_path = PROMPTS_DIR / f"{name}.md"
-    return prompt_path.read_text()
+    content = prompt_path.read_text()
+
+    # Replace default spec file name with custom one if provided
+    if spec_file is not None:
+        content = content.replace(DEFAULT_SPEC_FILE, str(spec_file))
+
+    return content
 
 
-def get_initializer_prompt() -> str:
-    """Load the initializer prompt."""
-    return load_prompt("initializer_prompt")
+def get_initializer_prompt(spec_file: Path | None = None) -> str:
+    """Load the initializer prompt.
+
+    Args:
+        spec_file: Path to the spec file (relative to project dir)
+    """
+    return load_prompt("initializer_prompt", spec_file)
 
 
-def get_coding_prompt() -> str:
-    """Load the coding agent prompt."""
-    return load_prompt("coding_prompt")
+def get_coding_prompt(spec_file: Path | None = None) -> str:
+    """Load the coding agent prompt.
 
-
-def copy_spec_to_project(project_dir: Path) -> None:
-    """Copy the app spec file into the project directory for the agent to read."""
-    spec_source = PROMPTS_DIR / "app_spec.txt"
-    spec_dest = project_dir / "app_spec.txt"
-    if not spec_dest.exists():
-        shutil.copy(spec_source, spec_dest)
-        print("Copied app_spec.txt to project directory")
+    Args:
+        spec_file: Path to the spec file (relative to project dir)
+    """
+    return load_prompt("coding_prompt", spec_file)

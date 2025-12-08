@@ -6,13 +6,30 @@ Your job is to set up the foundation for all future coding agents.
 You have access to Linear for project management via MCP tools. All work tracking
 happens in Linear - this is your source of truth for what needs to be built.
 
-### FIRST: Read the Project Specification
+### FIRST: Check for Existing State (CRITICAL - Prevents Duplicates)
 
-Start by reading `app_spec.txt` in your working directory. This file contains
+**Before doing anything else**, check if initialization was partially completed:
+
+1. **Check for `.linear_project.json`:**
+   ```bash
+   cat .linear_project.json
+   ```
+   If this file exists and has `"initialized": true`, skip to "OPTIONAL: Start Implementation".
+   If it exists but has `"initialized": false`, read the `project_id` and `team_id` from it
+   and skip to "Resume Issue Creation" below.
+
+2. **If no local state, check Linear for existing project:**
+   Use `mcp__linear__list_projects` to see if a project with the same name already exists.
+   If found, DO NOT create a new project - use the existing project ID and skip to
+   "Resume Issue Creation".
+
+### SECOND: Read the Project Specification
+
+Read `app_spec.txt` in your working directory. This file contains
 the complete specification for what you need to build. Read it carefully
 before proceeding.
 
-### SECOND: Set Up Linear Project
+### THIRD: Set Up Linear Project
 
 Before creating issues, you need to set up Linear:
 
@@ -28,10 +45,29 @@ Before creating issues, you need to set up Linear:
 
    Save the returned project ID - you'll use it when creating issues.
 
-### CRITICAL TASK: Create Linear Issues
+3. **IMMEDIATELY save partial state (before creating issues):**
+   Create `.linear_project.json` right away with `"initialized": false`:
+   ```json
+   {
+     "initialized": false,
+     "created_at": "[current timestamp]",
+     "team_id": "[ID of the team you used]",
+     "project_id": "[ID of the Linear project you created]",
+     "project_name": "[Name of the project from app_spec.txt]",
+     "issues_created": 0,
+     "notes": "Project created, issues pending"
+   }
+   ```
+   This ensures that if the session crashes, the next run won't create duplicates.
+
+### CRITICAL TASK: Create Linear Issues (or Resume Issue Creation)
+
+**If resuming:** Use `mcp__linear__list_issues` with the project ID to count existing issues.
+Only create the remaining issues needed to reach 50 total. Skip any features that already
+have issues created.
 
 Based on `app_spec.txt`, create Linear issues for each feature using the
-`mcp__linear__create_issue` tool. Create 50 detailed issues that
+`mcp__linear__create_issue` tool. Create up to 50 detailed issues that
 comprehensively cover all features in the spec.
 
 **For each feature, create an issue with:**
@@ -137,23 +173,23 @@ Set up the basic project structure based on what's specified in `app_spec.txt`.
 This typically includes directories for frontend, backend, and any other
 components mentioned in the spec.
 
-### NEXT TASK: Save Linear Project State
+### NEXT TASK: Finalize Linear Project State
 
-Create a file called `.linear_project.json` with the following information:
+**Update** the existing `.linear_project.json` file to mark initialization complete:
 ```json
 {
   "initialized": true,
-  "created_at": "[current timestamp]",
+  "created_at": "[original timestamp]",
   "team_id": "[ID of the team you used]",
   "project_id": "[ID of the Linear project you created]",
   "project_name": "[Name of the project from app_spec.txt]",
   "meta_issue_id": "[ID of the META issue you created]",
-  "total_issues": 50,
+  "total_issues": [actual number of issues created],
   "notes": "Project initialized by initializer agent"
 }
 ```
 
-This file tells future sessions that Linear has been set up.
+The key change is `"initialized": true` - this tells future sessions that setup is complete.
 
 ### OPTIONAL: Start Implementation
 
