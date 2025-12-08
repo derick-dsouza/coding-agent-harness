@@ -73,20 +73,24 @@ Config File (.autocode-config.json):
     "initializer_model": "claude-opus-4-5-20251101",
     "coding_model": "claude-sonnet-4-5-20250929",
     "audit_model": "claude-opus-4-5-20251101",
-    "max_iterations": 10
+    "max_iterations": 10,
+    "task_adapter": "linear"
   }
 
   Or use single model for all sessions:
   {
     "spec_file": "my_spec.txt",
-    "model": "claude-opus-4-5-20251101"
+    "model": "claude-opus-4-5-20251101",
+    "task_adapter": "linear"
   }
 
   Priority: CLI arguments > config file > defaults
 
 Environment Variables:
   CLAUDE_CODE_OAUTH_TOKEN    Claude Code OAuth token (required)
-  LINEAR_API_KEY             Linear API key (required)
+  LINEAR_API_KEY             Linear API key (required for Linear adapter)
+  TASK_ADAPTER_TYPE          Task management adapter to use (default: linear)
+                             Options: linear, jira, github (only linear implemented currently)
         """,
     )
 
@@ -137,6 +141,13 @@ Environment Variables:
         type=Path,
         default=None,
         help="Path to spec file relative to project directory - supports .txt, .md, .yaml, .yml, etc. (default: app_spec.txt)",
+    )
+
+    parser.add_argument(
+        "--task-adapter",
+        type=str,
+        default=None,
+        help="Task management adapter (default: linear). Options: linear, jira, github. Note: Only linear is currently implemented.",
     )
 
     return parser.parse_args()
@@ -284,6 +295,20 @@ def resolve_config(
             print(f"  3. Use --spec-file argument")
         return None
 
+    # Resolve task_adapter: CLI > config > env > default
+    if args.task_adapter is not None:
+        resolved["task_adapter"] = args.task_adapter
+        print(f"Using task_adapter from CLI: {args.task_adapter}")
+    elif "task_adapter" in config:
+        resolved["task_adapter"] = config["task_adapter"]
+        print(f"Using task_adapter from {CONFIG_FILE}: {config['task_adapter']}")
+    elif os.environ.get("TASK_ADAPTER_TYPE"):
+        resolved["task_adapter"] = os.environ["TASK_ADAPTER_TYPE"]
+        print(f"Using task_adapter from TASK_ADAPTER_TYPE env: {os.environ['TASK_ADAPTER_TYPE']}")
+    else:
+        resolved["task_adapter"] = "linear"
+        print(f"Using default task_adapter: linear")
+
     return resolved
 
 
@@ -297,14 +322,6 @@ def main() -> None:
         print("\nRun 'claude setup-token' after installing the Claude Code CLI.")
         print("\nThen set it:")
         print("  export CLAUDE_CODE_OAUTH_TOKEN='your-token-here'")
-        return
-
-    # Check for Linear API key
-    if not os.environ.get("LINEAR_API_KEY"):
-        print("Error: LINEAR_API_KEY environment variable not set")
-        print("\nGet your API key from: https://linear.app/YOUR-TEAM/settings/api")
-        print("\nThen set it:")
-        print("  export LINEAR_API_KEY='lin_api_xxxxxxxxxxxxx'")
         return
 
     # Resolve project directory
@@ -329,6 +346,34 @@ def main() -> None:
     resolved = resolve_config(args, project_dir, config)
     if resolved is None:
         return
+
+    # Check for task adapter-specific requirements
+    task_adapter = resolved.get("task_adapter", "linear")
+    
+    if task_adapter == "linear":
+        # Check for Linear API key
+        if not os.environ.get("LINEAR_API_KEY"):
+            print("Error: LINEAR_API_KEY environment variable not set")
+            print("\nLinear adapter requires an API key.")
+            print("Get your API key from: https://linear.app/YOUR-TEAM/settings/api")
+            print("\nThen set it:")
+            print("  export LINEAR_API_KEY='lin_api_xxxxxxxxxxxxx'")
+            return
+    elif task_adapter == "jira":
+        print("Error: Jira adapter not yet implemented")
+        print("Currently supported adapters: linear")
+        return
+    elif task_adapter == "github":
+        print("Error: GitHub adapter not yet implemented")
+        print("Currently supported adapters: linear")
+        return
+    else:
+        print(f"Error: Unknown task adapter: {task_adapter}")
+        print("Currently supported adapters: linear")
+        return
+
+    # Set environment variable for task adapter (used by agent)
+    os.environ["TASK_ADAPTER_TYPE"] = task_adapter
 
     # Run the agent
     try:

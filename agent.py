@@ -3,9 +3,11 @@ Agent Session Logic
 ===================
 
 Core agent interaction functions for running autonomous coding sessions.
+Supports multiple task management backends (Linear, Jira, GitHub) via adapter pattern.
 """
 
 import asyncio
+import os
 import re
 from pathlib import Path
 from typing import Optional
@@ -13,7 +15,7 @@ from typing import Optional
 from claude_agent_sdk import ClaudeSDKClient
 
 from client import create_client
-from progress import print_session_header, print_progress_summary, is_linear_initialized
+from progress import print_session_header, print_progress_summary, is_task_initialized
 from prompts import get_initializer_prompt, get_coding_prompt, get_audit_prompt
 
 
@@ -265,41 +267,54 @@ class UnifiedRateLimitHandler:
         self.linear_handler.reset()
 
 
-class LinearInitializationHandler:
-    """Handles Linear project initialization checks and guidance."""
+class TaskInitializationHandler:
+    """Handles task management system initialization checks and guidance."""
 
     def __init__(self):
         self.initialization_attempts = 0
         self.max_init_attempts = 1
 
-    def is_linear_uninitialized(self, project_dir: Path) -> bool:
-        """Check if Linear project needs initialization."""
-        return not is_linear_initialized(project_dir)
+    def is_task_uninitialized(self, project_dir: Path) -> bool:
+        """Check if task management project needs initialization."""
+        return not is_task_initialized(project_dir)
 
     def print_initialization_warning(self, project_dir: Path) -> None:
-        """Print guidance for Linear initialization."""
+        """Print guidance for task management initialization."""
         self.initialization_attempts += 1
 
         print(f"\n{'='*70}")
-        print(f"  LINEAR PROJECT INITIALIZATION REQUIRED")
+        print(f"  TASK MANAGEMENT PROJECT INITIALIZATION REQUIRED")
         print(f"{'='*70}\n")
 
-        print("The Linear project has not been initialized yet.")
-        print("\nTo initialize, run the Linear query script:")
-        print("  python query_linear.py --init\n")
+        print("The task management project has not been initialized yet.")
+        print("\nTo initialize, run the appropriate script for your adapter:")
+        print("  Linear:  python query_linear.py --init")
+        print("  Jira:    (not yet implemented)")
+        print("  GitHub:  (not yet implemented)\n")
 
         print("This will:")
-        print("  1. Connect to your Linear workspace")
+        print("  1. Connect to your task management workspace")
         print("  2. Create a new project for this task")
         print("  3. Generate initial issues from the specification")
         print("  4. Save the project state locally\n")
 
         print("Once initialized, the agent will:")
-        print("  - Track progress in Linear")
+        print("  - Track progress in your task system")
         print("  - Update issue statuses automatically")
-        print("  - Create session summaries as Linear comments\n")
+        print("  - Create session summaries as comments\n")
 
-        print(f"Environment requirement: LINEAR_API_KEY must be set\n")
+        # Determine which env var is needed based on TASK_ADAPTER_TYPE
+        adapter_type = os.environ.get("TASK_ADAPTER_TYPE", "linear")
+        if adapter_type == "linear":
+            env_var = "LINEAR_API_KEY"
+        elif adapter_type == "jira":
+            env_var = "JIRA_API_KEY"
+        elif adapter_type == "github":
+            env_var = "GITHUB_TOKEN"
+        else:
+            env_var = "TASK_API_KEY"
+        
+        print(f"Environment requirement: {env_var} must be set\n")
 
     def should_wait_for_init(self) -> bool:
         """Check if we should continue waiting for initialization."""
@@ -308,7 +323,7 @@ class LinearInitializationHandler:
 
 # Global handlers for the session
 rate_limit_handler = UnifiedRateLimitHandler()
-linear_init_handler = LinearInitializationHandler()
+task_init_handler = TaskInitializationHandler()
 
 
 def should_run_audit(project_dir: Path) -> bool:
@@ -322,17 +337,17 @@ def should_run_audit(project_dir: Path) -> bool:
         True if audit should run, False otherwise
     """
     # This is a simplified check - in a real implementation, you would
-    # query Linear to count issues with "awaiting-audit" label
-    # For now, we track this in .linear_project.json
+    # query the task management system to count issues with "awaiting-audit" label
+    # For now, we track this in .task_project.json
     
-    from progress import load_linear_project_state
+    from progress import load_task_project_state
     
-    state = load_linear_project_state(project_dir)
+    state = load_task_project_state(project_dir)
     if not state or not state.get("initialized"):
         return False
     
     # Get count of features awaiting audit from state
-    # In practice, this would query Linear API
+    # In practice, this would query task management API
     awaiting_count = state.get("features_awaiting_audit", 0)
     
     return awaiting_count >= AUDIT_INTERVAL
@@ -447,6 +462,7 @@ async def run_autonomous_agent(
     print("=" * 70)
     print(f"\nProject directory: {project_dir}")
     print(f"Spec file: {spec_file}")
+    print(f"Task adapter: {os.environ.get('TASK_ADAPTER_TYPE', 'linear')}")
     print(f"Initializer model: {initializer_model}")
     print(f"Coding model: {coding_model}")
     print(f"Audit model: {audit_model}")
@@ -457,20 +473,20 @@ async def run_autonomous_agent(
     print()
 
     # Check if this is a fresh start or continuation
-    # We use .linear_project.json as the marker for initialization
-    is_first_run = not is_linear_initialized(project_dir)
+    # We use .task_project.json as the marker for initialization
+    is_first_run = not is_task_initialized(project_dir)
 
     if is_first_run:
         print("Fresh start - will use initializer agent")
         print()
         print("=" * 70)
         print("  NOTE: First session takes 10-20+ minutes!")
-        print("  The agent is creating 50 Linear issues and setting up the project.")
+        print("  The agent is creating 50 issues and setting up the project.")
         print("  This may appear to hang - it's working. Watch for [Tool: ...] output.")
         print("=" * 70)
         print()
     else:
-        print("Continuing existing project (Linear initialized)")
+        print("Continuing existing project (task management initialized)")
         print_progress_summary(project_dir)
 
     # Main loop
@@ -528,11 +544,11 @@ async def run_autonomous_agent(
         if status == "continue":
             print(f"\nAgent will auto-continue in {AUTO_CONTINUE_DELAY_SECONDS}s...")
             
-            # Check if Linear needs initialization
-            if linear_init_handler.is_linear_uninitialized(project_dir):
-                linear_init_handler.print_initialization_warning(project_dir)
-                if not linear_init_handler.should_wait_for_init():
-                    print("\nTo proceed, initialize Linear using the command above.")
+            # Check if task management needs initialization
+            if task_init_handler.is_task_uninitialized(project_dir):
+                task_init_handler.print_initialization_warning(project_dir)
+                if not task_init_handler.should_wait_for_init():
+                    print("\nTo proceed, initialize task management using the command above.")
                     break
                 await asyncio.sleep(AUTO_CONTINUE_DELAY_SECONDS)
             else:
