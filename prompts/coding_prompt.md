@@ -3,12 +3,16 @@
 You are continuing work on a long-running autonomous development task.
 This is a FRESH context window - you have no memory of previous sessions.
 
-You have access to Linear for project management via MCP tools. Linear is your
-single source of truth for what needs to be built and what's been completed.
+You have access to a **task management system** for project management via MCP tools. 
+Your task management system is your single source of truth for what needs to be built 
+and what's been completed.
 
-### LINEAR API RATE LIMITS
+**Note:** Your task management system may be Linear, Jira, GitHub Issues, or another 
+platform. The workflow is the same regardless - the system handles the mapping automatically.
 
-Linear has a rate limit of **1,500 requests per hour**.
+### TASK MANAGEMENT API RATE LIMITS
+
+Your task management system has API rate limits (e.g., Linear: 1,500 requests/hour).
 
 **If you see a rate limit error:**
 - The harness will automatically pause and wait before retrying
@@ -16,7 +20,7 @@ Linear has a rate limit of **1,500 requests per hour**.
 - After the pause, continue where you left off
 
 **Best practices:**
-- Minimize unnecessary Linear API calls (cache issue info locally)
+- Minimize unnecessary API calls (cache issue info locally)
 - Don't repeatedly query the same issues
 - Batch your status updates (update once when done, not multiple times)
 
@@ -34,8 +38,8 @@ ls -la
 # 3. Read the project specification to understand what you're building
 cat app_spec.txt
 
-# 4. Read the Linear project state
-cat .linear_project.json
+# 4. Read the task project state
+cat .task_project.json
 
 # 5. Check recent git history
 git log --oneline -20
@@ -44,24 +48,24 @@ git log --oneline -20
 Understanding the `app_spec.txt` is critical - it contains the full requirements
 for the application you're building.
 
-### STEP 2: CHECK LINEAR STATUS
+### STEP 2: CHECK PROJECT STATUS
 
-Query Linear to understand current project state. The `.linear_project.json` file
-contains the `project_id` and `team_id` you should use for all Linear queries.
+Query your task management system to understand current project state. The `.task_project.json` file
+contains the `project_id` and `team_id` you should use for all queries.
 
 1. **Find the META issue** for session context:
-   Use `mcp__linear__list_issues` with the project ID from `.linear_project.json`
+   List issues in the project from `.task_project.json`
    and search for "[META] Project Progress Tracker".
    Read the issue description and recent comments for context from previous sessions.
 
 2. **Count progress:**
-   Use `mcp__linear__list_issues` with the project ID to get all issues, then count:
-   - Issues with status "Done" = completed
-   - Issues with status "Todo" = remaining
-   - Issues with status "In Progress" = currently being worked on
+   List all issues in the project to count:
+   - Issues with status DONE = completed
+   - Issues with status TODO = remaining
+   - Issues with status IN_PROGRESS = currently being worked on
 
 3. **Check for in-progress work:**
-   If any issue is "In Progress", that should be your first priority.
+   If any issue is IN_PROGRESS, that should be your first priority.
    A previous session may have been interrupted.
 
 ### STEP 3: START SERVERS (IF NOT RUNNING)
@@ -81,8 +85,8 @@ Otherwise, start servers manually and document the process.
 The previous session may have introduced bugs. Before implementing anything
 new, you MUST run verification tests.
 
-Use `mcp__linear__list_issues` with the project ID and status "Done" to find 1-2
-completed features that are core to the app's functionality.
+List issues with status DONE to find 1-2 completed features that are core 
+to the app's functionality.
 
 Test these through the browser using Puppeteer:
 - Navigate to the feature
@@ -90,7 +94,7 @@ Test these through the browser using Puppeteer:
 - Take screenshots to confirm
 
 **If you find ANY issues (functional or visual):**
-- Use `mcp__linear__update_issue` to set status back to "In Progress"
+- Update the issue status back to IN_PROGRESS
 - Add a comment explaining what broke
 - Fix the issue BEFORE moving to new features
 - This includes UI bugs like:
@@ -104,17 +108,17 @@ Test these through the browser using Puppeteer:
 
 ### STEP 5: SELECT NEXT ISSUE TO WORK ON
 
-Use `mcp__linear__list_issues` with the project ID from `.linear_project.json`:
-- Filter by `status`: "Todo"
-- Sort by priority (1=urgent is highest)
-- `limit`: 5
+List issues from your project in `.task_project.json`:
+- Filter by status: TODO
+- Sort by priority (URGENT is highest)
+- Limit: 5
 
 Review the highest-priority unstarted issues and select ONE to work on.
 
 ### STEP 6: CLAIM THE ISSUE
 
-Before starting work, use `mcp__linear__update_issue` to:
-- Set the issue's `status` to "In Progress"
+Before starting work, update the issue:
+- Set status to IN_PROGRESS
 
 This signals to any other agents (or humans watching) that this issue is being worked on.
 
@@ -149,11 +153,11 @@ Use browser automation tools:
 - Skip visual verification
 - Mark issues Done without thorough verification
 
-### STEP 9: UPDATE LINEAR ISSUE (CAREFULLY!)
+### STEP 9: UPDATE ISSUE (CAREFULLY!)
 
 After thorough verification:
 
-1. **Add implementation comment** using `mcp__linear__create_comment`:
+1. **Add implementation comment** to the issue:
    ```markdown
    ## Implementation Complete
 
@@ -170,19 +174,19 @@ After thorough verification:
    [commit hash and message]
    ```
 
-2. **Update status and add audit label** using `mcp__linear__update_issue`:
-   - Set `status` to "Done"
+2. **Update status and add audit label:**
+   - Set status to DONE
    - Add label `"awaiting-audit"`
 
 **IMPORTANT: The "awaiting-audit" label**
 
 This label signals that you've completed and self-tested the feature,
 but it hasn't been audited yet by the quality assurance agent. Every
-~10 features, an Opus audit session will review all features with this
+~10 features, an audit session will review all features with this
 label and either approve them (changing label to "audited") or create
 [FIX] issues for any bugs found.
 
-**ONLY update status to Done AFTER:**
+**ONLY update status to DONE AFTER:**
 - All test steps in the issue description pass
 - Visual verification via screenshots
 - No console errors
@@ -198,7 +202,7 @@ git commit -m "Implement [feature name]
 
 - Added [specific changes]
 - Tested with browser automation
-- Linear issue: [issue identifier]
+- Issue: [issue identifier]
 "
 ```
 
@@ -233,7 +237,7 @@ Before context fills up:
 1. Commit all working code
 2. If working on an issue you can't complete:
    - Add a comment explaining progress and what's left
-   - Keep status as "In Progress" (don't revert to Todo)
+   - Keep status as IN_PROGRESS (don't revert to TODO)
 3. Update META issue with session summary
 4. Ensure no uncommitted changes
 5. Leave app in working state (no broken features)
@@ -248,10 +252,10 @@ Before context fills up:
 - Done → In Progress (only if regression found during audit)
 
 **Label Workflow (New - Audit System):**
-- When marking issue "Done", add label "awaiting-audit"
+- When marking issue DONE, add label "awaiting-audit"
 - Audit agent will review and either:
   - Approve: Remove "awaiting-audit", add "audited"
-  - Find bugs: Set to "In Progress", create [FIX] issues
+  - Find bugs: Set to IN_PROGRESS, create [FIX] issues
 - [FIX] issues created by audit also get "awaiting-audit" when done
 - This ensures continuous quality verification
 
@@ -263,9 +267,9 @@ Before context fills up:
 **NEVER:**
 - Delete or archive issues
 - Modify issue descriptions or test steps
-- Work on issues already "In Progress" by someone else
-- Mark "Done" without verification
-- Leave issues "In Progress" when switching to another issue
+- Work on issues already IN_PROGRESS by someone else
+- Mark DONE without verification
+- Leave issues IN_PROGRESS when switching to another issue
 - Forget to add "awaiting-audit" label when marking Done
 
 ---
