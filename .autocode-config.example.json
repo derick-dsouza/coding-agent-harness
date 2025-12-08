@@ -3,11 +3,12 @@
   
   "spec_file": "app_spec.txt",
   
-  "_models_comment": "Use different models for initialization/audit vs coding",
+  "_models_comment": "Use different models for initialization, coding, and audit sessions",
   "initializer_model": "claude-opus-4-5-20251101",
   "coding_model": "claude-sonnet-4-5-20250929",
+  "audit_model": "claude-opus-4-5-20251101",
   
-  "_audit_comment": "Audit system uses Opus (initializer_model) to review work every 10 features",
+  "_audit_comment": "Audit system reviews work every 10 features using audit_model",
   "_audit_interval": 10,
   
   "_single_model_comment": "Or use a single model for all sessions (uncomment to use)",
@@ -20,22 +21,34 @@
     "recommended_with_audit": {
       "initializer_model": "claude-opus-4-5-20251101",
       "coding_model": "claude-sonnet-4-5-20250929",
+      "audit_model": "claude-opus-4-5-20251101",
       "audit_frequency": "Every 10 features",
       "savings": "~65% cost reduction vs all-Opus",
       "quality": "⭐⭐⭐⭐⭐ (Opus reviews all work)",
       "note": "Opus for planning & audits, Sonnet for implementation"
     },
+    "sonnet_audit_variant": {
+      "initializer_model": "claude-opus-4-5-20251101",
+      "coding_model": "claude-sonnet-4-5-20250929",
+      "audit_model": "claude-sonnet-4-5-20250929",
+      "audit_frequency": "Every 10 features",
+      "savings": "~75% cost reduction vs all-Opus",
+      "quality": "⭐⭐⭐⭐ (Sonnet audits, still catches most issues)",
+      "note": "Good if tasks are straightforward and well-defined"
+    },
     "maximum_savings": {
       "initializer_model": "claude-opus-4-5-20251101",
       "coding_model": "claude-haiku-4-20250514",
+      "audit_model": "claude-sonnet-4-5-20250929",
       "audit_frequency": "Every 5 features (more frequent due to Haiku)",
       "savings": "~85% cost reduction vs all-Opus",
-      "quality": "⭐⭐⭐⭐ (Frequent Opus audits catch Haiku mistakes)",
+      "quality": "⭐⭐⭐⭐ (Sonnet audits catch Haiku mistakes)",
       "note": "Only if tasks are very simple and well-defined"
     },
     "premium_quality": {
       "initializer_model": "claude-opus-4-5-20251101",
       "coding_model": "claude-opus-4-5-20251101",
+      "audit_model": "claude-opus-4-5-20251101",
       "audit_frequency": "Still audits every 10 features for systemic issues",
       "savings": "0% (baseline)",
       "quality": "⭐⭐⭐⭐⭐ (Maximum quality)",
@@ -46,23 +59,31 @@
   "_audit_system_details": {
     "how_it_works": [
       "1. Coding agent implements features, marks as 'Done [awaiting-audit]'",
-      "2. Every 10 features, Opus audit agent reviews batch",
+      "2. Every 10 features, audit agent (using audit_model) reviews batch",
       "3. Audit agent approves OR creates [FIX] issues for bugs",
       "4. Coding agent fixes bugs, fixes get re-audited",
       "5. Continuous quality improvement cycle"
     ],
     "labels": {
       "awaiting-audit": "Features completed but not yet reviewed",
-      "audited": "Features that passed Opus quality review",
+      "audited": "Features that passed quality review",
       "fix": "Bug issues created by audit agent",
       "audit-finding": "Bugs found during audit sessions",
       "has-bugs": "Features awaiting bug fixes"
     },
     "benefits": [
-      "High quality (Opus reviews all work)",
+      "High quality (audit_model reviews all work)",
       "Cost effective (batch review, not per-feature)",
       "No throughput penalty (async review)",
       "Catches systemic issues across features"
-    ]
+    ],
+    "model_flexibility": {
+      "audit_model": "Can be different from initializer_model",
+      "use_cases": [
+        "Opus init + Sonnet coding + Opus audit = Best quality",
+        "Opus init + Sonnet coding + Sonnet audit = More savings",
+        "Opus init + Haiku coding + Sonnet audit = Maximum savings"
+      ]
+    }
   }
 }

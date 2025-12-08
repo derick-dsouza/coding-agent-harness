@@ -428,6 +428,7 @@ async def run_autonomous_agent(
     spec_file: Path,
     initializer_model: str,
     coding_model: str,
+    audit_model: str,
     max_iterations: Optional[int] = None,
 ) -> None:
     """
@@ -438,6 +439,7 @@ async def run_autonomous_agent(
         spec_file: Path to spec file relative to project_dir
         initializer_model: Claude model for initialization
         coding_model: Claude model for coding sessions
+        audit_model: Claude model for audit sessions
         max_iterations: Maximum number of iterations (None for unlimited)
     """
     print("\n" + "=" * 70)
@@ -447,6 +449,7 @@ async def run_autonomous_agent(
     print(f"Spec file: {spec_file}")
     print(f"Initializer model: {initializer_model}")
     print(f"Coding model: {coding_model}")
+    print(f"Audit model: {audit_model}")
     if max_iterations:
         print(f"Max iterations: {max_iterations}")
     else:
@@ -489,8 +492,8 @@ async def run_autonomous_agent(
         # Priority: Audit > Initialization > Coding
         
         if should_run_audit(project_dir):
-            # Audit session: Use Opus to review completed work
-            model = initializer_model  # Use Opus for audit
+            # Audit session: Review completed work with audit model
+            model = audit_model
             prompt = get_audit_prompt(spec_file)
             session_type = "AUDIT"
             print("=" * 70)

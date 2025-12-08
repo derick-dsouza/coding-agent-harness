@@ -22,10 +22,11 @@ from agent import run_autonomous_agent
 
 
 # Configuration
-# Model defaults - using Opus for initialization, Sonnet for coding
-# This balances quality (Opus for planning) with cost/speed (Sonnet for implementation)
+# Model defaults - three separate models for different session types
+# This balances quality (Opus for planning/audit) with cost/speed (Sonnet for implementation)
 DEFAULT_INITIALIZER_MODEL = "claude-opus-4-5-20251101"
 DEFAULT_CODING_MODEL = "claude-sonnet-4-5-20250929"
+DEFAULT_AUDIT_MODEL = "claude-opus-4-5-20251101"  # Default: same as initializer
 CONFIG_FILE = ".autocode-config.json"
 DEFAULT_SPEC_FILE = "app_spec.txt"
 
@@ -46,10 +47,19 @@ Examples:
   # Use a custom spec file (overrides .autocode-config.json)
   python autocode.py --spec-file requirements.txt
 
-  # Use separate models for initialization and coding (recommended for cost savings)
-  python autocode.py --initializer-model claude-opus-4-5-20251101 --coding-model claude-sonnet-4-5-20250929
+  # Use separate models for initialization, coding, and audit (recommended)
+  python autocode.py \\
+    --initializer-model claude-opus-4-5-20251101 \\
+    --coding-model claude-sonnet-4-5-20250929 \\
+    --audit-model claude-opus-4-5-20251101
 
-  # Use a specific model for both initialization and coding
+  # Use Sonnet for coding but cheaper Haiku for audits (if tasks are simple)
+  python autocode.py \\
+    --initializer-model claude-opus-4-5-20251101 \\
+    --coding-model claude-sonnet-4-5-20250929 \\
+    --audit-model claude-sonnet-4-5-20250929
+
+  # Use a specific model for all sessions (init, coding, and audit)
   python autocode.py --model claude-opus-4-5-20251101
 
   # Limit iterations for testing
@@ -60,10 +70,11 @@ Config File (.autocode-config.json):
     "spec_file": "my_spec.txt",
     "initializer_model": "claude-opus-4-5-20251101",
     "coding_model": "claude-sonnet-4-5-20250929",
+    "audit_model": "claude-opus-4-5-20251101",
     "max_iterations": 10
   }
 
-  Or use single model for both:
+  Or use single model for all sessions:
   {
     "spec_file": "my_spec.txt",
     "model": "claude-opus-4-5-20251101"
@@ -106,10 +117,17 @@ Environment Variables:
     )
 
     parser.add_argument(
+        "--audit-model",
+        type=str,
+        default=None,
+        help=f"Claude model for audit sessions (default: {DEFAULT_AUDIT_MODEL})",
+    )
+
+    parser.add_argument(
         "--model",
         type=str,
         default=None,
-        help="Claude model for both initialization and coding (overrides --initializer-model and --coding-model)",
+        help="Claude model for all sessions (overrides --initializer-model, --coding-model, and --audit-model)",
     )
 
     parser.add_argument(
@@ -155,11 +173,12 @@ def resolve_config(
     resolved = {}
 
     # Resolve models: CLI > config > defaults
-    # If --model is specified, use it for both initializer and coding
+    # If --model is specified, use it for all three (initializer, coding, audit)
     if args.model is not None:
         resolved["initializer_model"] = args.model
         resolved["coding_model"] = args.model
-        print(f"Using single model for both: {args.model}")
+        resolved["audit_model"] = args.model
+        print(f"Using single model for all sessions: {args.model}")
     else:
         # Resolve initializer model
         if args.initializer_model is not None:
@@ -191,13 +210,34 @@ def resolve_config(
             resolved["coding_model"] = DEFAULT_CODING_MODEL
             print(f"Using default coding model: {DEFAULT_CODING_MODEL}")
 
+        # Resolve audit model
+        if args.audit_model is not None:
+            resolved["audit_model"] = args.audit_model
+            print(f"Using audit model from CLI: {args.audit_model}")
+        elif "audit_model" in config:
+            resolved["audit_model"] = config["audit_model"]
+            print(f"Using audit model from {CONFIG_FILE}: {config['audit_model']}")
+        elif "model" in config:
+            # Fallback to single model from config
+            resolved["audit_model"] = config["model"]
+            print(f"Using model from {CONFIG_FILE} for audit: {config['model']}")
+        else:
+            resolved["audit_model"] = DEFAULT_AUDIT_MODEL
+            print(f"Using default audit model: {DEFAULT_AUDIT_MODEL}")
+
     # Print model summary
-    if resolved["initializer_model"] == resolved["coding_model"]:
+    all_same = (
+        resolved["initializer_model"] == resolved["coding_model"] == resolved["audit_model"]
+    )
+    
+    if all_same:
         print(f"\n📊 Model Strategy: Single model for all sessions")
+        print(f"   Model: {resolved['initializer_model']}")
     else:
         print(f"\n📊 Model Strategy: Multi-model optimization")
         print(f"   Initializer: {resolved['initializer_model']} (high-quality planning)")
         print(f"   Coding: {resolved['coding_model']} (cost-effective implementation)")
+        print(f"   Audit: {resolved['audit_model']} (quality assurance)")
 
     # Resolve max_iterations: CLI > config > default (None = unlimited)
     if args.max_iterations is not None:
@@ -296,6 +336,7 @@ def main() -> None:
                 spec_file=resolved["spec_file"],
                 initializer_model=resolved["initializer_model"],
                 coding_model=resolved["coding_model"],
+                audit_model=resolved["audit_model"],
                 max_iterations=resolved["max_iterations"],
             )
         )
