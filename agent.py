@@ -20,37 +20,45 @@ from prompts import get_initializer_prompt, get_coding_prompt
 # Configuration
 AUTO_CONTINUE_DELAY_SECONDS = 3
 
-# Rate limiting configuration
-RATE_LIMIT_BASE_WAIT_SECONDS = 60  # Start with 1 minute
-RATE_LIMIT_MAX_WAIT_SECONDS = 900  # Cap at 15 minutes
-RATE_LIMIT_BACKOFF_MULTIPLIER = 2  # Double wait time on consecutive limits
+# Claude API rate limiting configuration
+CLAUDE_RATE_LIMIT_BASE_WAIT_SECONDS = 60
+CLAUDE_RATE_LIMIT_MAX_WAIT_SECONDS = 900
+CLAUDE_RATE_LIMIT_BACKOFF_MULTIPLIER = 2
 
-# Smart wait thresholds (in minutes)
-WAIT_THRESHOLD_AUTO = 30  # ≤30 min: auto-wait with countdown
-WAIT_THRESHOLD_OPTIONAL = 120  # ≤2 hours: wait but allow Ctrl+C exit
+# Claude API smart wait thresholds (in minutes)
+CLAUDE_WAIT_THRESHOLD_AUTO = 30  # ≤30 min: auto-wait with countdown
+CLAUDE_WAIT_THRESHOLD_OPTIONAL = 120  # ≤2 hours: wait but allow Ctrl+C exit
 # >2 hours: auto-exit with resume instructions
 
+# Linear API rate limiting configuration
+LINEAR_RATE_LIMIT_MAX_WAIT_SECONDS = 3600  # Max 1 hour (Linear's limit)
+LINEAR_WAIT_THRESHOLD_AUTO = 60  # ≤60 min: auto-wait (Linear max is 1 hour)
 
-class RateLimitHandler:
-    """Handles rate limit detection with smart wait/exit decisions."""
+
+class ClaudeRateLimitHandler:
+    """
+    Handles Claude API rate limit detection with smart wait/exit decisions.
+    
+    Claude has hourly, weekly, and monthly limits that can require waiting
+    from minutes to days. This handler intelligently decides when to wait
+    vs. when to exit and resume later.
+    """
 
     def __init__(self):
         self.consecutive_rate_limits = 0
         self.last_rate_limit_time = 0
 
-    def is_rate_limit_error(self, content: str) -> bool:
-        """Check if content indicates a rate limit error."""
+    def is_claude_rate_limit(self, content: str) -> bool:
+        """Check if content indicates a Claude API rate limit."""
         content_lower = content.lower()
+        # Claude-specific patterns
         return (
-            "rate limit" in content_lower
-            or "ratelimit" in content_lower
-            or "too many requests" in content_lower
-            or "429" in content
+            "limit reached" in content_lower
+            or ("resets" in content_lower and ("am" in content_lower or "pm" in content_lower))
         )
 
     def extract_reset_time(self, content: str) -> Optional[int]:
         """Try to extract reset time from error message (in seconds)."""
-        # Look for patterns like "retry after X seconds" or "reset in X"
         patterns = [
             r"retry.{0,10}after.{0,5}(\d+)\s*(?:second|sec|s)",
             r"reset.{0,10}in.{0,5}(\d+)\s*(?:second|sec|s)",
@@ -62,7 +70,6 @@ class RateLimitHandler:
             match = re.search(pattern, content.lower())
             if match:
                 seconds = int(match.group(1))
-                # Detect if it's hours or minutes based on pattern
                 if 'hour' in pattern or ' h)' in pattern:
                     seconds *= 3600
                 elif 'minute' in pattern:
@@ -72,45 +79,30 @@ class RateLimitHandler:
 
     def get_wait_time(self, content: str) -> int:
         """Calculate wait time with exponential backoff."""
-        # Try to extract reset time from error
         extracted = self.extract_reset_time(content)
         if extracted:
-            return min(extracted + 5, RATE_LIMIT_MAX_WAIT_SECONDS)  # Add 5s buffer
-
-        # Use exponential backoff
-        wait = RATE_LIMIT_BASE_WAIT_SECONDS * (
-            RATE_LIMIT_BACKOFF_MULTIPLIER ** self.consecutive_rate_limits
+            return min(extracted + 5, CLAUDE_RATE_LIMIT_MAX_WAIT_SECONDS)
+        
+        wait = CLAUDE_RATE_LIMIT_BASE_WAIT_SECONDS * (
+            CLAUDE_RATE_LIMIT_BACKOFF_MULTIPLIER ** self.consecutive_rate_limits
         )
-        return min(wait, RATE_LIMIT_MAX_WAIT_SECONDS)
-
-    def should_exit_for_long_wait(self, wait_seconds: int) -> bool:
-        """Decide if wait is too long and should exit instead."""
-        wait_minutes = wait_seconds / 60
-        return wait_minutes > WAIT_THRESHOLD_OPTIONAL
+        return min(wait, CLAUDE_RATE_LIMIT_MAX_WAIT_SECONDS)
 
     async def handle_rate_limit(self, content: str) -> tuple[str, int]:
-        """
-        Handle a rate limit by waiting appropriately or recommending exit.
-        
-        Returns:
-            (action, wait_time) where action is "wait" or "exit"
-        """
+        """Handle Claude API rate limit with smart wait/exit decision."""
         self.consecutive_rate_limits += 1
         wait_time = self.get_wait_time(content)
         wait_minutes = wait_time / 60
         wait_hours = wait_minutes / 60
 
         print(f"\n{'='*70}")
-        print(f"  RATE LIMIT DETECTED (#{self.consecutive_rate_limits})")
+        print(f"  CLAUDE API RATE LIMIT DETECTED (#{self.consecutive_rate_limits})")
         print(f"{'='*70}\n")
 
-        # Smart decision based on wait time
-        if wait_minutes <= WAIT_THRESHOLD_AUTO:
-            # Short wait: auto-wait with countdown
+        if wait_minutes <= CLAUDE_WAIT_THRESHOLD_AUTO:
             print(f"  Wait time: {wait_minutes:.1f} minutes ({wait_time}s)")
             print(f"  Decision: Auto-waiting (short duration)\n")
             
-            # Show countdown for waits > 30s
             if wait_time > 30:
                 for remaining in range(wait_time, 0, -30):
                     mins = remaining / 60
@@ -122,8 +114,7 @@ class RateLimitHandler:
             print("  Rate limit wait complete. Resuming...\n")
             return ("wait", wait_time)
 
-        elif wait_minutes <= WAIT_THRESHOLD_OPTIONAL:
-            # Medium wait: wait but inform user they can exit
+        elif wait_minutes <= CLAUDE_WAIT_THRESHOLD_OPTIONAL:
             print(f"  Wait time: {wait_minutes:.1f} minutes ({wait_hours:.2f} hours)")
             print(f"  Decision: Waiting, but you can press Ctrl+C to exit\n")
             print(f"  To resume later, run the same command again.")
@@ -142,7 +133,6 @@ class RateLimitHandler:
                 return ("exit", wait_time)
 
         else:
-            # Long wait: auto-exit with instructions
             print(f"  Wait time: {wait_hours:.1f} hours ({wait_minutes:.0f} minutes)")
             print(f"  Decision: Wait too long, exiting gracefully\n")
             print(f"  {'='*70}")
@@ -155,10 +145,119 @@ class RateLimitHandler:
             return ("exit", wait_time)
 
     def reset(self) -> None:
-        """Reset consecutive rate limit counter (call after successful request)."""
+        """Reset consecutive rate limit counter."""
         if self.consecutive_rate_limits > 0:
-            print("  [Rate limit cleared - requests succeeding]")
+            print("  [Claude API rate limit cleared]")
         self.consecutive_rate_limits = 0
+
+
+class LinearRateLimitHandler:
+    """
+    Handles Linear API rate limit detection (1500 requests/hour).
+    
+    Linear has a fixed 1-hour rolling window, so waits are always manageable.
+    This handler always waits rather than exiting.
+    """
+
+    def __init__(self):
+        self.consecutive_rate_limits = 0
+
+    def is_linear_rate_limit(self, content: str, tool_name: str = "") -> bool:
+        """Check if content indicates a Linear API rate limit."""
+        content_lower = content.lower()
+        # Linear-specific patterns
+        return (
+            ("linear" in content_lower and "rate limit" in content_lower)
+            or ("429" in content and "linear" in tool_name.lower())
+            or ("1500" in content and "per hour" in content_lower)
+            or "mcp__linear__" in tool_name.lower() and any(
+                phrase in content_lower
+                for phrase in ["rate limit", "too many requests", "429"]
+            )
+        )
+
+    async def handle_rate_limit(self, content: str) -> tuple[str, int]:
+        """Handle Linear API rate limit by waiting (max 1 hour)."""
+        self.consecutive_rate_limits += 1
+        
+        # Linear resets hourly, so max wait is 60 minutes
+        # Use a conservative estimate
+        wait_time = min(3600, LINEAR_RATE_LIMIT_MAX_WAIT_SECONDS)
+        wait_minutes = wait_time / 60
+
+        print(f"\n{'='*70}")
+        print(f"  LINEAR API RATE LIMIT DETECTED (#{self.consecutive_rate_limits})")
+        print(f"{'='*70}\n")
+        print(f"  Linear limit: 1500 requests/hour")
+        print(f"  Wait time: {wait_minutes:.0f} minutes (max)")
+        print(f"  Decision: Auto-waiting (Linear resets within 1 hour)\n")
+
+        # Show countdown
+        for remaining in range(wait_time, 0, -60):
+            mins = remaining / 60
+            print(f"  ... {mins:.0f} minutes remaining", flush=True)
+            await asyncio.sleep(min(60, remaining))
+        
+        print("  Linear rate limit wait complete. Resuming...\n")
+        return ("wait", wait_time)
+
+    def reset(self) -> None:
+        """Reset consecutive rate limit counter."""
+        if self.consecutive_rate_limits > 0:
+            print("  [Linear API rate limit cleared]")
+        self.consecutive_rate_limits = 0
+
+
+class UnifiedRateLimitHandler:
+    """
+    Unified rate limit handler that dispatches to appropriate sub-handler.
+    
+    Automatically detects whether the rate limit is from:
+    - Claude API (hourly/weekly/monthly limits, can be hours to days)
+    - Linear API (1500 requests/hour, max 1-hour wait)
+    
+    And applies the appropriate wait/exit strategy for each.
+    """
+
+    def __init__(self):
+        self.claude_handler = ClaudeRateLimitHandler()
+        self.linear_handler = LinearRateLimitHandler()
+
+    def is_rate_limit_error(self, content: str, tool_name: str = "") -> bool:
+        """Check if content indicates any rate limit error."""
+        return (
+            self.claude_handler.is_claude_rate_limit(content)
+            or self.linear_handler.is_linear_rate_limit(content, tool_name)
+        )
+
+    async def handle_rate_limit(self, content: str, tool_name: str = "") -> tuple[str, int]:
+        """
+        Handle rate limit by dispatching to appropriate handler.
+        
+        Args:
+            content: Error message content
+            tool_name: Name of the tool that generated the error (if applicable)
+        
+        Returns:
+            (action, wait_time) where action is "wait" or "exit"
+        """
+        # Check Linear first (more specific pattern)
+        if self.linear_handler.is_linear_rate_limit(content, tool_name):
+            return await self.linear_handler.handle_rate_limit(content)
+        
+        # Otherwise assume Claude API rate limit
+        elif self.claude_handler.is_claude_rate_limit(content):
+            return await self.claude_handler.handle_rate_limit(content)
+        
+        # Fallback: treat as generic rate limit (use Claude handler)
+        else:
+            print("  [Unknown rate limit source, using Claude handler]")
+            return await self.claude_handler.handle_rate_limit(content)
+
+    def reset(self) -> None:
+        """Reset both handlers."""
+        self.claude_handler.reset()
+        self.linear_handler.reset()
 
 
 class LinearInitializationHandler:
@@ -202,8 +301,8 @@ class LinearInitializationHandler:
         return self.initialization_attempts < self.max_init_attempts
 
 
-# Global rate limit handler for the session
-rate_limit_handler = RateLimitHandler()
+# Global handlers for the session
+rate_limit_handler = UnifiedRateLimitHandler()
 linear_init_handler = LinearInitializationHandler()
 
 
