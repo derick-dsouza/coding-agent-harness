@@ -74,8 +74,20 @@ def print_progress_summary(project_dir: Path) -> None:
 
     total = state.get("total_issues", 0)
     meta_issue = state.get("meta_issue_id", "unknown")
+    audits_completed = state.get("audits_completed", 0)
+    features_awaiting = state.get("features_awaiting_audit", 0)
 
     print(f"\nLinear Project Status:")
     print(f"  Total issues created: {total}")
     print(f"  META issue ID: {meta_issue}")
     print(f"  (Check Linear for current Done/In Progress/Todo counts)")
+    
+    if audits_completed > 0:
+        print(f"\nAudit Status:")
+        print(f"  Audits completed: {audits_completed}")
+        print(f"  Features awaiting audit: {features_awaiting}")
+        if features_awaiting >= 10:
+            print(f"  ⚠️  Audit threshold reached - next session will be an audit")
+        elif features_awaiting > 5:
+            print(f"  ⏳ Approaching audit threshold ({features_awaiting}/10)")
+

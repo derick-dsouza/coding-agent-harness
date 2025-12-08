@@ -14,11 +14,16 @@ from claude_agent_sdk import ClaudeSDKClient
 
 from client import create_client
 from progress import print_session_header, print_progress_summary, is_linear_initialized
-from prompts import get_initializer_prompt, get_coding_prompt
+from prompts import get_initializer_prompt, get_coding_prompt, get_audit_prompt
 
 
 # Configuration
 AUTO_CONTINUE_DELAY_SECONDS = 3
+
+# Audit system configuration
+AUDIT_INTERVAL = 10  # Trigger audit every 10 completed features
+AUDIT_LABEL_AWAITING = "awaiting-audit"
+AUDIT_LABEL_AUDITED = "audited"
 
 # Claude API rate limiting configuration
 CLAUDE_RATE_LIMIT_BASE_WAIT_SECONDS = 60
@@ -306,6 +311,33 @@ rate_limit_handler = UnifiedRateLimitHandler()
 linear_init_handler = LinearInitializationHandler()
 
 
+def should_run_audit(project_dir: Path) -> bool:
+    """
+    Check if it's time to run an audit session.
+    
+    An audit is triggered when there are >= AUDIT_INTERVAL features
+    with the "awaiting-audit" label.
+    
+    Returns:
+        True if audit should run, False otherwise
+    """
+    # This is a simplified check - in a real implementation, you would
+    # query Linear to count issues with "awaiting-audit" label
+    # For now, we track this in .linear_project.json
+    
+    from progress import load_linear_project_state
+    
+    state = load_linear_project_state(project_dir)
+    if not state or not state.get("initialized"):
+        return False
+    
+    # Get count of features awaiting audit from state
+    # In practice, this would query Linear API
+    awaiting_count = state.get("features_awaiting_audit", 0)
+    
+    return awaiting_count >= AUDIT_INTERVAL
+
+
 async def run_agent_session(
     client: ClaudeSDKClient,
     message: str,
@@ -454,14 +486,32 @@ async def run_autonomous_agent(
         print_session_header(iteration, is_first_run)
 
         # Choose model and prompt based on session type
-        if is_first_run:
+        # Priority: Audit > Initialization > Coding
+        
+        if should_run_audit(project_dir):
+            # Audit session: Use Opus to review completed work
+            model = initializer_model  # Use Opus for audit
+            prompt = get_audit_prompt(spec_file)
+            session_type = "AUDIT"
+            print("=" * 70)
+            print("  🔍 AUDIT SESSION - Quality Assurance Review")
+            print("=" * 70)
+            print(f"Reviewing features with '{AUDIT_LABEL_AWAITING}' label")
+            print(f"Using audit model: {model}\n")
+            
+        elif is_first_run:
+            # Initialization session: Set up project and create issues
             model = initializer_model
             prompt = get_initializer_prompt(spec_file)
+            session_type = "INITIALIZATION"
             print(f"Using initializer model: {model}\n")
             is_first_run = False  # Only use initializer once
+            
         else:
+            # Coding session: Implement features
             model = coding_model
             prompt = get_coding_prompt(spec_file)
+            session_type = "CODING"
             print(f"Using coding model: {model}\n")
 
         # Create client (fresh context)

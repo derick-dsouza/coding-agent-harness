@@ -50,3 +50,12 @@ def get_coding_prompt(spec_file: Path | None = None) -> str:
         spec_file: Path to the spec file (relative to project dir)
     """
     return load_prompt("coding_prompt", spec_file)
+
+
+def get_audit_prompt(spec_file: Path | None = None) -> str:
+    """Load the audit agent prompt.
+
+    Args:
+        spec_file: Path to the spec file (relative to project dir)
+    """
+    return load_prompt("audit_prompt", spec_file)
