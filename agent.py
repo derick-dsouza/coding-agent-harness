@@ -394,7 +394,8 @@ async def run_agent_session(
 async def run_autonomous_agent(
     project_dir: Path,
     spec_file: Path,
-    model: str,
+    initializer_model: str,
+    coding_model: str,
     max_iterations: Optional[int] = None,
 ) -> None:
     """
@@ -403,7 +404,8 @@ async def run_autonomous_agent(
     Args:
         project_dir: Directory for the project
         spec_file: Path to spec file relative to project_dir
-        model: Claude model to use
+        initializer_model: Claude model for initialization
+        coding_model: Claude model for coding sessions
         max_iterations: Maximum number of iterations (None for unlimited)
     """
     print("\n" + "=" * 70)
@@ -411,7 +413,8 @@ async def run_autonomous_agent(
     print("=" * 70)
     print(f"\nProject directory: {project_dir}")
     print(f"Spec file: {spec_file}")
-    print(f"Model: {model}")
+    print(f"Initializer model: {initializer_model}")
+    print(f"Coding model: {coding_model}")
     if max_iterations:
         print(f"Max iterations: {max_iterations}")
     else:
@@ -450,15 +453,19 @@ async def run_autonomous_agent(
         # Print session header
         print_session_header(iteration, is_first_run)
 
-        # Create client (fresh context)
-        client = create_client(project_dir, model)
-
-        # Choose prompt based on session type
+        # Choose model and prompt based on session type
         if is_first_run:
+            model = initializer_model
             prompt = get_initializer_prompt(spec_file)
+            print(f"Using initializer model: {model}\n")
             is_first_run = False  # Only use initializer once
         else:
+            model = coding_model
             prompt = get_coding_prompt(spec_file)
+            print(f"Using coding model: {model}\n")
+
+        # Create client (fresh context)
+        client = create_client(project_dir, model)
 
         # Run session with async context manager
         async with client:

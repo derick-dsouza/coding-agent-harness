@@ -1,0 +1,36 @@
+{
+  "_comment": "Example configuration for autocode.py - Multi-model optimization",
+  
+  "spec_file": "app_spec.txt",
+  
+  "_models_comment": "Use different models for initialization vs coding",
+  "initializer_model": "claude-opus-4-5-20251101",
+  "coding_model": "claude-sonnet-4-5-20250929",
+  
+  "_single_model_comment": "Or use a single model for both (uncomment to use)",
+  "_model": "claude-opus-4-5-20251101",
+  
+  "_iterations_comment": "Optional: limit iterations for testing",
+  "max_iterations": null,
+  
+  "_cost_optimization_strategies": {
+    "recommended": {
+      "initializer_model": "claude-opus-4-5-20251101",
+      "coding_model": "claude-sonnet-4-5-20250929",
+      "savings": "~70% cost reduction vs all-Opus",
+      "note": "Opus for planning, Sonnet for implementation"
+    },
+    "maximum_savings": {
+      "initializer_model": "claude-opus-4-5-20251101",
+      "coding_model": "claude-haiku-4-20250514",
+      "savings": "~90% cost reduction vs all-Opus",
+      "note": "Good for simple, well-defined tasks"
+    },
+    "premium_quality": {
+      "initializer_model": "claude-opus-4-5-20251101",
+      "coding_model": "claude-opus-4-5-20251101",
+      "savings": "0% (baseline)",
+      "note": "Maximum quality for critical projects"
+    }
+  }
+}

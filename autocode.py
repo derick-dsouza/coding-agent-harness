@@ -22,9 +22,10 @@ from agent import run_autonomous_agent
 
 
 # Configuration
-# Using Claude Opus 4.5 as default for best coding and agentic performance
-# See: https://www.anthropic.com/news/claude-opus-4-5
-DEFAULT_MODEL = "claude-opus-4-5-20251101"
+# Model defaults - using Opus for initialization, Sonnet for coding
+# This balances quality (Opus for planning) with cost/speed (Sonnet for implementation)
+DEFAULT_INITIALIZER_MODEL = "claude-opus-4-5-20251101"
+DEFAULT_CODING_MODEL = "claude-sonnet-4-5-20250929"
 CONFIG_FILE = ".autocode-config.json"
 DEFAULT_SPEC_FILE = "app_spec.txt"
 
@@ -45,8 +46,11 @@ Examples:
   # Use a custom spec file (overrides .autocode-config.json)
   python autocode.py --spec-file requirements.txt
 
-  # Use a specific model
-  python autocode.py --model claude-sonnet-4-5-20250929
+  # Use separate models for initialization and coding (recommended for cost savings)
+  python autocode.py --initializer-model claude-opus-4-5-20251101 --coding-model claude-sonnet-4-5-20250929
+
+  # Use a specific model for both initialization and coding
+  python autocode.py --model claude-opus-4-5-20251101
 
   # Limit iterations for testing
   python autocode.py --max-iterations 5
@@ -54,8 +58,15 @@ Examples:
 Config File (.autocode-config.json):
   {
     "spec_file": "my_spec.txt",
-    "model": "claude-sonnet-4-5-20250929",
+    "initializer_model": "claude-opus-4-5-20251101",
+    "coding_model": "claude-sonnet-4-5-20250929",
     "max_iterations": 10
+  }
+
+  Or use single model for both:
+  {
+    "spec_file": "my_spec.txt",
+    "model": "claude-opus-4-5-20251101"
   }
 
   Priority: CLI arguments > config file > defaults
@@ -81,10 +92,24 @@ Environment Variables:
     )
 
     parser.add_argument(
+        "--initializer-model",
+        type=str,
+        default=None,
+        help=f"Claude model for initialization (default: {DEFAULT_INITIALIZER_MODEL})",
+    )
+
+    parser.add_argument(
+        "--coding-model",
+        type=str,
+        default=None,
+        help=f"Claude model for coding sessions (default: {DEFAULT_CODING_MODEL})",
+    )
+
+    parser.add_argument(
         "--model",
         type=str,
-        default=DEFAULT_MODEL,
-        help=f"Claude model to use (default: {DEFAULT_MODEL})",
+        default=None,
+        help="Claude model for both initialization and coding (overrides --initializer-model and --coding-model)",
     )
 
     parser.add_argument(
@@ -129,27 +154,61 @@ def resolve_config(
     """
     resolved = {}
 
-    # Resolve model: CLI > config > default
-    if args.model != DEFAULT_MODEL:
-        resolved["model"] = args.model
-        print(f"Using model from CLI: {args.model}")
-    elif "model" in config:
-        resolved["model"] = config["model"]
-        print(f"Using model from {CONFIG_FILE}: {config['model']}")
+    # Resolve models: CLI > config > defaults
+    # If --model is specified, use it for both initializer and coding
+    if args.model is not None:
+        resolved["initializer_model"] = args.model
+        resolved["coding_model"] = args.model
+        print(f"Using single model for both: {args.model}")
     else:
-        resolved["model"] = DEFAULT_MODEL
-        print(f"Using default model: {DEFAULT_MODEL}")
+        # Resolve initializer model
+        if args.initializer_model is not None:
+            resolved["initializer_model"] = args.initializer_model
+            print(f"Using initializer model from CLI: {args.initializer_model}")
+        elif "initializer_model" in config:
+            resolved["initializer_model"] = config["initializer_model"]
+            print(f"Using initializer model from {CONFIG_FILE}: {config['initializer_model']}")
+        elif "model" in config:
+            # Fallback to single model from config
+            resolved["initializer_model"] = config["model"]
+            print(f"Using model from {CONFIG_FILE} for initializer: {config['model']}")
+        else:
+            resolved["initializer_model"] = DEFAULT_INITIALIZER_MODEL
+            print(f"Using default initializer model: {DEFAULT_INITIALIZER_MODEL}")
+
+        # Resolve coding model
+        if args.coding_model is not None:
+            resolved["coding_model"] = args.coding_model
+            print(f"Using coding model from CLI: {args.coding_model}")
+        elif "coding_model" in config:
+            resolved["coding_model"] = config["coding_model"]
+            print(f"Using coding model from {CONFIG_FILE}: {config['coding_model']}")
+        elif "model" in config:
+            # Fallback to single model from config
+            resolved["coding_model"] = config["model"]
+            print(f"Using model from {CONFIG_FILE} for coding: {config['model']}")
+        else:
+            resolved["coding_model"] = DEFAULT_CODING_MODEL
+            print(f"Using default coding model: {DEFAULT_CODING_MODEL}")
+
+    # Print model summary
+    if resolved["initializer_model"] == resolved["coding_model"]:
+        print(f"\n📊 Model Strategy: Single model for all sessions")
+    else:
+        print(f"\n📊 Model Strategy: Multi-model optimization")
+        print(f"   Initializer: {resolved['initializer_model']} (high-quality planning)")
+        print(f"   Coding: {resolved['coding_model']} (cost-effective implementation)")
 
     # Resolve max_iterations: CLI > config > default (None = unlimited)
     if args.max_iterations is not None:
         resolved["max_iterations"] = args.max_iterations
-        print(f"Using max_iterations from CLI: {args.max_iterations}")
+        print(f"\nUsing max_iterations from CLI: {args.max_iterations}")
     elif "max_iterations" in config:
         resolved["max_iterations"] = config["max_iterations"]
-        print(f"Using max_iterations from {CONFIG_FILE}: {config['max_iterations']}")
+        print(f"\nUsing max_iterations from {CONFIG_FILE}: {config['max_iterations']}")
     else:
         resolved["max_iterations"] = None
-        print("Using default max_iterations: unlimited")
+        print("\nUsing default max_iterations: unlimited")
 
     # Resolve spec_file: CLI > config > default (app_spec.txt)
     spec_file = None
@@ -235,7 +294,8 @@ def main() -> None:
             run_autonomous_agent(
                 project_dir=project_dir,
                 spec_file=resolved["spec_file"],
-                model=resolved["model"],
+                initializer_model=resolved["initializer_model"],
+                coding_model=resolved["coding_model"],
                 max_iterations=resolved["max_iterations"],
             )
         )
