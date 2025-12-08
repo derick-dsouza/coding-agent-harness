@@ -44,8 +44,10 @@ Examples:
   # Specify project directory explicitly
   python autocode.py --project-dir /path/to/my-project
 
-  # Use a custom spec file (overrides .autocode-config.json)
-  python autocode.py --spec-file requirements.txt
+  # Use a custom spec file - supports .txt, .md, .yaml, .yml, etc.
+  python autocode.py --spec-file requirements.md
+  python autocode.py --spec-file spec.yaml
+  python autocode.py --spec-file PROJECT_SPEC.txt
 
   # Use separate models for initialization, coding, and audit (recommended)
   python autocode.py \\
@@ -134,7 +136,7 @@ Environment Variables:
         "--spec-file",
         type=Path,
         default=None,
-        help="Path to spec file relative to project directory (default: from .autocode-config.json or app_spec.txt)",
+        help="Path to spec file relative to project directory - supports .txt, .md, .yaml, .yml, etc. (default: app_spec.txt)",
     )
 
     return parser.parse_args()
