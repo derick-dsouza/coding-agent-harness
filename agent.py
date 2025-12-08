@@ -6,6 +6,7 @@ Core agent interaction functions for running autonomous coding sessions.
 """
 
 import asyncio
+import re
 from pathlib import Path
 from typing import Optional
 
@@ -18,6 +19,86 @@ from prompts import get_initializer_prompt, get_coding_prompt
 
 # Configuration
 AUTO_CONTINUE_DELAY_SECONDS = 3
+
+# Rate limiting configuration
+RATE_LIMIT_BASE_WAIT_SECONDS = 60  # Start with 1 minute
+RATE_LIMIT_MAX_WAIT_SECONDS = 900  # Cap at 15 minutes
+RATE_LIMIT_BACKOFF_MULTIPLIER = 2  # Double wait time on consecutive limits
+
+
+class RateLimitHandler:
+    """Handles rate limit detection and exponential backoff."""
+
+    def __init__(self):
+        self.consecutive_rate_limits = 0
+        self.last_rate_limit_time = 0
+
+    def is_rate_limit_error(self, content: str) -> bool:
+        """Check if content indicates a rate limit error."""
+        content_lower = content.lower()
+        return (
+            "rate limit" in content_lower
+            or "ratelimit" in content_lower
+            or "too many requests" in content_lower
+            or "429" in content
+        )
+
+    def extract_reset_time(self, content: str) -> Optional[int]:
+        """Try to extract reset time from error message (in seconds)."""
+        # Look for patterns like "retry after X seconds" or "reset in X"
+        patterns = [
+            r"retry.{0,10}after.{0,5}(\d+)\s*(?:second|sec|s)",
+            r"reset.{0,10}in.{0,5}(\d+)\s*(?:second|sec|s)",
+            r"wait.{0,10}(\d+)\s*(?:second|sec|s)",
+        ]
+        for pattern in patterns:
+            match = re.search(pattern, content.lower())
+            if match:
+                return int(match.group(1))
+        return None
+
+    def get_wait_time(self, content: str) -> int:
+        """Calculate wait time with exponential backoff."""
+        # Try to extract reset time from error
+        extracted = self.extract_reset_time(content)
+        if extracted:
+            return min(extracted + 5, RATE_LIMIT_MAX_WAIT_SECONDS)  # Add 5s buffer
+
+        # Use exponential backoff
+        wait = RATE_LIMIT_BASE_WAIT_SECONDS * (
+            RATE_LIMIT_BACKOFF_MULTIPLIER ** self.consecutive_rate_limits
+        )
+        return min(wait, RATE_LIMIT_MAX_WAIT_SECONDS)
+
+    async def handle_rate_limit(self, content: str) -> None:
+        """Handle a rate limit by waiting appropriately."""
+        self.consecutive_rate_limits += 1
+        wait_time = self.get_wait_time(content)
+
+        print(f"\n{'='*50}")
+        print(f"  RATE LIMIT DETECTED (#{self.consecutive_rate_limits})")
+        print(f"  Waiting {wait_time} seconds before continuing...")
+        print(f"{'='*50}\n")
+
+        # Show countdown for long waits
+        if wait_time > 30:
+            for remaining in range(wait_time, 0, -30):
+                print(f"  ... {remaining}s remaining", flush=True)
+                await asyncio.sleep(min(30, remaining))
+        else:
+            await asyncio.sleep(wait_time)
+
+        print("  Rate limit wait complete. Resuming...\n")
+
+    def reset(self) -> None:
+        """Reset consecutive rate limit counter (call after successful request)."""
+        if self.consecutive_rate_limits > 0:
+            print("  [Rate limit cleared - requests succeeding]")
+        self.consecutive_rate_limits = 0
+
+
+# Global rate limit handler for the session
+rate_limit_handler = RateLimitHandler()
 
 
 async def run_agent_session(
@@ -74,16 +155,23 @@ async def run_agent_session(
                     if block_type == "ToolResultBlock":
                         result_content = getattr(block, "content", "")
                         is_error = getattr(block, "is_error", False)
+                        result_str = str(result_content)
 
                         # Check if command was blocked by security hook
-                        if "blocked" in str(result_content).lower():
+                        if "blocked" in result_str.lower():
                             print(f"   [BLOCKED] {result_content}", flush=True)
                         elif is_error:
-                            # Show errors (truncated)
-                            error_str = str(result_content)[:500]
-                            print(f"   [Error] {error_str}", flush=True)
+                            # Check for rate limit errors
+                            if rate_limit_handler.is_rate_limit_error(result_str):
+                                print(f"   [Rate Limited] {result_str[:200]}", flush=True)
+                                await rate_limit_handler.handle_rate_limit(result_str)
+                            else:
+                                # Show other errors (truncated)
+                                error_str = result_str[:500]
+                                print(f"   [Error] {error_str}", flush=True)
                         else:
-                            # Tool succeeded - just show brief confirmation
+                            # Tool succeeded - reset rate limit counter
+                            rate_limit_handler.reset()
                             print("   [Done]", flush=True)
 
         print("\n" + "-" * 70 + "\n")

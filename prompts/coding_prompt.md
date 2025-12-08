@@ -6,6 +6,20 @@ This is a FRESH context window - you have no memory of previous sessions.
 You have access to Linear for project management via MCP tools. Linear is your
 single source of truth for what needs to be built and what's been completed.
 
+### LINEAR API RATE LIMITS
+
+Linear has a rate limit of **1,500 requests per hour**.
+
+**If you see a rate limit error:**
+- The harness will automatically pause and wait before retrying
+- DO NOT manually retry immediately - wait for the pause to complete
+- After the pause, continue where you left off
+
+**Best practices:**
+- Minimize unnecessary Linear API calls (cache issue info locally)
+- Don't repeatedly query the same issues
+- Batch your status updates (update once when done, not multiple times)
+
 ### STEP 1: GET YOUR BEARINGS (MANDATORY)
 
 Start by orienting yourself:

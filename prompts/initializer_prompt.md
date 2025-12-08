@@ -6,6 +6,20 @@ Your job is to set up the foundation for all future coding agents.
 You have access to Linear for project management via MCP tools. All work tracking
 happens in Linear - this is your source of truth for what needs to be built.
 
+### LINEAR API RATE LIMITS (IMPORTANT)
+
+Linear has a rate limit of **1,500 requests per hour**. When creating 50 issues:
+
+**If you see a rate limit error:**
+- The harness will automatically pause and wait before retrying
+- DO NOT manually retry immediately - wait for the pause to complete
+- After the pause, continue where you left off
+
+**Best practices to avoid rate limits:**
+- Create issues one at a time (don't batch rapid-fire requests)
+- If creating many issues, add brief pauses (use `sleep 1` between batches of 10)
+- Check `.linear_project.json` for `issues_created` count to resume from the right place
+
 ### FIRST: Check for Existing State (CRITICAL - Prevents Duplicates)
 
 **Before doing anything else**, check if initialization was partially completed:
