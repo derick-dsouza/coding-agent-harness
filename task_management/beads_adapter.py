@@ -5,8 +5,13 @@ BEADS Adapter Implementation
 Maps BEADS task management to the generic TaskManagementAdapter interface.
 Uses the BEADS CLI (bd) for all operations.
 
-Note: This is a template implementation. Actual BEADS CLI commands and
-JSON structure need to be updated based on real BEADS CLI documentation.
+BEADS-specific concepts:
+- Issues have statuses: open, in_progress, blocked, closed
+- Priorities: 0 (critical) to 4 (backlog)
+- Types: bug, feature, task, epic, chore
+- Hash-based IDs (bd-a1b2, bd-f14c) for collision-free multi-worker support
+- Dependency tracking: blocks, related, parent-child, discovered-from
+- Git-backed database with JSONL storage
 """
 
 import json
@@ -30,50 +35,45 @@ class BeadsAdapter(TaskManagementAdapter):
     """
     BEADS implementation of the TaskManagementAdapter.
     
-    Uses BEADS CLI (bd) to interact with BEADS API.
-    Maps BEADS terminology to generic task management concepts.
+    Uses BEADS CLI (bd) to interact with the git-backed issue tracker.
+    Maps BEADS concepts to generic task management interface.
     
-    Note: Command structure is based on typical task management CLIs.
-    Adjust based on actual BEADS CLI documentation.
+    BEADS Status Values: open, in_progress, blocked, closed
+    BEADS Priority Values: 0-4 (0=critical, 1=high, 2=medium, 3=low, 4=backlog)
+    BEADS Types: bug, feature, task, epic, chore
     """
     
     # Status mapping: Generic → BEADS
-    # Adjust these based on actual BEADS status values
     STATUS_TO_BEADS = {
-        IssueStatus.TODO: "TODO",
-        IssueStatus.IN_PROGRESS: "IN_PROGRESS",
-        IssueStatus.DONE: "DONE",
-        IssueStatus.CANCELED: "CANCELED",
+        IssueStatus.TODO: "open",
+        IssueStatus.IN_PROGRESS: "in_progress",
+        IssueStatus.DONE: "closed",
+        IssueStatus.CANCELED: "closed",
     }
     
     # Status mapping: BEADS → Generic
     BEADS_TO_STATUS = {
-        "TODO": IssueStatus.TODO,
-        "BACKLOG": IssueStatus.TODO,
-        "IN_PROGRESS": IssueStatus.IN_PROGRESS,
-        "DOING": IssueStatus.IN_PROGRESS,
-        "DONE": IssueStatus.DONE,
-        "COMPLETED": IssueStatus.DONE,
-        "CANCELED": IssueStatus.CANCELED,
-        "CANCELLED": IssueStatus.CANCELED,
+        "open": IssueStatus.TODO,
+        "in_progress": IssueStatus.IN_PROGRESS,
+        "blocked": IssueStatus.IN_PROGRESS,
+        "closed": IssueStatus.DONE,
     }
     
-    # Priority mapping: Generic → BEADS
+    # Priority mapping: Generic → BEADS (0-4 scale)
     PRIORITY_TO_BEADS = {
-        IssuePriority.URGENT: "URGENT",
-        IssuePriority.HIGH: "HIGH",
-        IssuePriority.MEDIUM: "MEDIUM",
-        IssuePriority.LOW: "LOW",
+        IssuePriority.URGENT: 0,      # Critical
+        IssuePriority.HIGH: 1,        # High
+        IssuePriority.MEDIUM: 2,      # Medium (default)
+        IssuePriority.LOW: 3,         # Low
     }
     
     # Priority mapping: BEADS → Generic
     BEADS_TO_PRIORITY = {
-        "URGENT": IssuePriority.URGENT,
-        "CRITICAL": IssuePriority.URGENT,
-        "HIGH": IssuePriority.HIGH,
-        "MEDIUM": IssuePriority.MEDIUM,
-        "NORMAL": IssuePriority.MEDIUM,
-        "LOW": IssuePriority.LOW,
+        0: IssuePriority.URGENT,      # Critical
+        1: IssuePriority.HIGH,        # High
+        2: IssuePriority.MEDIUM,      # Medium
+        3: IssuePriority.LOW,         # Low
+        4: IssuePriority.LOW,         # Backlog
     }
     
     def __init__(self, workspace: Optional[str] = None):
@@ -81,52 +81,49 @@ class BeadsAdapter(TaskManagementAdapter):
         Initialize BEADS adapter.
         
         Args:
-            workspace: BEADS workspace ID or name (if applicable)
+            workspace: Project directory (BEADS uses project-local databases)
         """
         self.workspace = workspace
         
         # Verify bd CLI is available
         try:
-            subprocess.run(
-                ["bd", "--version"],
+            result = subprocess.run(
+                ["bd", "version", "--json"],
                 capture_output=True,
+                text=True,
                 check=True,
             )
-        except (subprocess.CalledProcessError, FileNotFoundError):
-            raise RuntimeError("BEADS CLI (bd) not found or not authenticated")
+            version_info = json.loads(result.stdout)
+            self.bd_version = version_info.get("version", "unknown")
+        except (subprocess.CalledProcessError, FileNotFoundError, json.JSONDecodeError):
+            raise RuntimeError("BEADS CLI (bd) not found. Install from: https://github.com/steveyegge/beads")
     
     # ==================== Helper Methods ====================
     
-    def _run_bd(self, args: List[str], input_data: Optional[dict] = None) -> dict:
+    def _run_bd(self, args: List[str], cwd: Optional[str] = None) -> dict:
         """
         Run a bd CLI command and return parsed JSON output.
         
         Args:
             args: Command arguments (excluding 'bd')
-            input_data: Optional JSON data to pass as stdin
+            cwd: Working directory (defaults to self.workspace)
             
         Returns:
             Parsed JSON dict
         """
         cmd = ["bd"] + args
         
-        # Add workspace context if configured
-        if self.workspace:
-            cmd.extend(["--workspace", self.workspace])
-        
-        # Assume bd outputs JSON by default or with --json flag
+        # Add --json flag if not present
         if "--json" not in args:
             cmd.append("--json")
         
-        stdin_input = None
-        if input_data:
-            stdin_input = json.dumps(input_data)
+        work_dir = cwd or self.workspace
         
         result = subprocess.run(
             cmd,
             capture_output=True,
             text=True,
-            input=stdin_input,
+            cwd=work_dir,
             check=True,
         )
         
@@ -137,30 +134,22 @@ class BeadsAdapter(TaskManagementAdapter):
     
     def _parse_beads_status(self, beads_status: str) -> IssueStatus:
         """Convert BEADS status to generic IssueStatus."""
-        return self.BEADS_TO_STATUS.get(beads_status.upper(), IssueStatus.TODO)
+        return self.BEADS_TO_STATUS.get(beads_status.lower(), IssueStatus.TODO)
     
-    def _parse_beads_priority(self, beads_priority: str) -> IssuePriority:
-        """Convert BEADS priority to generic IssuePriority."""
-        return self.BEADS_TO_PRIORITY.get(beads_priority.upper(), IssuePriority.MEDIUM)
+    def _parse_beads_priority(self, beads_priority: int) -> IssuePriority:
+        """Convert BEADS priority (0-4) to generic IssuePriority."""
+        return self.BEADS_TO_PRIORITY.get(beads_priority, IssuePriority.MEDIUM)
     
     # ==================== Team Operations ====================
     
     def list_teams(self) -> List[Team]:
         """
-        List all BEADS teams/workspaces.
+        List teams.
         
-        Assumes: bd team list --json
+        Note: BEADS is project-local and doesn't have teams.
+        Returns empty list for interface compatibility.
         """
-        result = self._run_bd(["team", "list"])
-        
-        teams = []
-        for team_data in result.get("teams", []):
-            teams.append(Team(
-                id=team_data.get("id", ""),
-                name=team_data.get("name", ""),
-                description=team_data.get("description"),
-            ))
-        return teams
+        return []
     
     # ==================== Project Operations ====================
     
@@ -171,73 +160,53 @@ class BeadsAdapter(TaskManagementAdapter):
         description: Optional[str] = None,
     ) -> Project:
         """
-        Create a BEADS project.
+        Create a project.
         
-        Assumes: bd project create --name NAME --teams TEAMS [--description DESC]
+        Note: BEADS uses `bd init` to create project-local databases.
+        This method creates a synthetic Project object for interface compatibility.
+        Real initialization should be done via `bd init` in the project directory.
         """
-        cmd = ["project", "create", "--name", name]
-        
-        if team_ids:
-            cmd.extend(["--teams", ",".join(team_ids)])
-        
-        if description:
-            cmd.extend(["--description", description])
-        
-        result = self._run_bd(cmd)
-        
-        project_data = result.get("project", {})
+        # Return synthetic project (BEADS doesn't have central project management)
         return Project(
-            id=project_data.get("id", ""),
-            name=project_data.get("name", name),
-            description=project_data.get("description", description),
-            team_ids=team_ids,
-            created_at=self._parse_datetime(project_data.get("createdAt")),
+            id=name,
+            name=name,
+            description=description,
+            team_ids=[],
+            created_at=datetime.now(),
         )
     
     def get_project(self, project_id: str) -> Optional[Project]:
         """
-        Get a BEADS project by ID.
+        Get a project by ID.
         
-        Assumes: bd project get PROJECT_ID --json
+        Note: BEADS is project-local. Returns current project info if initialized.
         """
         try:
-            result = self._run_bd(["project", "get", project_id])
+            # Check if bd is initialized in workspace
+            result = self._run_bd(["info"])
             
-            project_data = result.get("project", {})
-            return Project(
-                id=project_data.get("id", project_id),
-                name=project_data.get("name", ""),
-                description=project_data.get("description"),
-                team_ids=project_data.get("teamIds", []),
-                created_at=self._parse_datetime(project_data.get("createdAt")),
-            )
+            db_path = result.get("database_path", "")
+            if db_path:
+                return Project(
+                    id=project_id,
+                    name=project_id,
+                    description="BEADS project",
+                    team_ids=[],
+                    created_at=None,
+                )
         except subprocess.CalledProcessError:
-            return None
+            pass
+        
+        return None
     
     def list_projects(self, team_id: Optional[str] = None) -> List[Project]:
         """
-        List BEADS projects.
+        List projects.
         
-        Assumes: bd project list [--team TEAM_ID] --json
+        Note: BEADS is project-local. Returns current project if initialized.
         """
-        cmd = ["project", "list"]
-        
-        if team_id:
-            cmd.extend(["--team", team_id])
-        
-        result = self._run_bd(cmd)
-        
-        projects = []
-        for project_data in result.get("projects", []):
-            projects.append(Project(
-                id=project_data.get("id", ""),
-                name=project_data.get("name", ""),
-                description=project_data.get("description"),
-                team_ids=project_data.get("teamIds", []),
-                created_at=self._parse_datetime(project_data.get("createdAt")),
-            ))
-        
-        return projects
+        project = self.get_project("current")
+        return [project] if project else []
     
     # ==================== Label Operations ====================
     
@@ -248,46 +217,40 @@ class BeadsAdapter(TaskManagementAdapter):
         description: Optional[str] = None,
     ) -> Label:
         """
-        Create a BEADS label.
+        Create a label.
         
-        Assumes: bd label create --name NAME [--color COLOR] [--description DESC]
+        Note: BEADS labels are added directly to issues via `bd label add`.
+        This returns a synthetic Label object for interface compatibility.
         """
-        cmd = ["label", "create", "--name", name]
-        
-        if color:
-            cmd.extend(["--color", color])
-        
-        if description:
-            cmd.extend(["--description", description])
-        
-        result = self._run_bd(cmd)
-        
-        label_data = result.get("label", {})
         return Label(
-            id=label_data.get("id", ""),
-            name=label_data.get("name", name),
-            color=label_data.get("color", color),
-            description=label_data.get("description", description),
+            id=name,
+            name=name,
+            color=color,
+            description=description,
         )
     
     def list_labels(self) -> List[Label]:
         """
-        List all BEADS labels.
+        List all labels used in issues.
         
-        Assumes: bd label list --json
+        Uses: bd label list-all --json
         """
-        result = self._run_bd(["label", "list"])
-        
-        labels = []
-        for label_data in result.get("labels", []):
-            labels.append(Label(
-                id=label_data.get("id", ""),
-                name=label_data.get("name", ""),
-                color=label_data.get("color"),
-                description=label_data.get("description"),
-            ))
-        
-        return labels
+        try:
+            result = self._run_bd(["label", "list-all"])
+            
+            labels = []
+            # Output format: {"labels": [{"name": "backend", "count": 5}, ...]}
+            for label_data in result.get("labels", []):
+                labels.append(Label(
+                    id=label_data.get("name", ""),
+                    name=label_data.get("name", ""),
+                    color=None,  # BEADS doesn't store label colors
+                    description=f"Used {label_data.get('count', 0)} times",
+                ))
+            
+            return labels
+        except subprocess.CalledProcessError:
+            return []
     
     # ==================== Issue Operations ====================
     
@@ -303,39 +266,40 @@ class BeadsAdapter(TaskManagementAdapter):
         """
         Create a BEADS issue.
         
-        Assumes: bd issue create --title TITLE [--description DESC] [--project PROJECT_ID]
-                 [--status STATUS] [--priority PRIORITY] [--labels LABEL_IDS]
+        Uses: bd create TITLE --description DESC --priority P --type TYPE --labels L1,L2
+        
+        Note: BEADS creates issues with status=open by default.
+        Status can be updated separately if needed.
         """
-        cmd = ["issue", "create", "--title", title]
+        cmd = ["create", title]
         
         if description:
             cmd.extend(["--description", description])
         
-        if project_id:
-            cmd.extend(["--project", project_id])
+        # Map priority
+        beads_priority = self.PRIORITY_TO_BEADS[priority]
+        cmd.extend(["--priority", str(beads_priority)])
         
-        cmd.extend(["--status", self.STATUS_TO_BEADS[status]])
-        cmd.extend(["--priority", self.PRIORITY_TO_BEADS[priority]])
+        # Default type is 'task'
+        cmd.extend(["--type", "task"])
         
         if labels:
             cmd.extend(["--labels", ",".join(labels)])
         
         result = self._run_bd(cmd)
         
-        issue_data = result.get("issue", {})
-        return self._parse_issue_data(issue_data)
+        # bd create returns the created issue
+        return self._parse_issue_data(result)
     
     def get_issue(self, issue_id: str) -> Optional[Issue]:
         """
         Get a BEADS issue by ID.
         
-        Assumes: bd issue get ISSUE_ID --json
+        Uses: bd show ISSUE_ID --json
         """
         try:
-            result = self._run_bd(["issue", "get", issue_id])
-            
-            issue_data = result.get("issue", {})
-            return self._parse_issue_data(issue_data)
+            result = self._run_bd(["show", issue_id])
+            return self._parse_issue_data(result)
         except subprocess.CalledProcessError:
             return None
     
@@ -353,37 +317,73 @@ class BeadsAdapter(TaskManagementAdapter):
         """
         Update a BEADS issue.
         
-        Assumes: bd issue update ISSUE_ID [--title TITLE] [--description DESC]
-                 [--status STATUS] [--priority PRIORITY] [--labels LABELS]
-                 [--add-labels LABELS] [--remove-labels LABELS]
+        Uses: bd update ISSUE_ID --status STATUS --priority P
+              bd label add ISSUE_ID LABEL
+              bd label remove ISSUE_ID LABEL
         """
-        cmd = ["issue", "update", issue_id]
+        # Update basic fields
+        if title is not None or description is not None or status is not None or priority is not None:
+            cmd = ["update", issue_id]
+            
+            if title is not None:
+                cmd.extend(["--title", title])
+            
+            if description is not None:
+                cmd.extend(["--description", description])
+            
+            if status is not None:
+                beads_status = self.STATUS_TO_BEADS[status]
+                cmd.extend(["--status", beads_status])
+            
+            if priority is not None:
+                beads_priority = self.PRIORITY_TO_BEADS[priority]
+                cmd.extend(["--priority", str(beads_priority)])
+            
+            self._run_bd(cmd)
         
-        if title is not None:
-            cmd.extend(["--title", title])
-        
-        if description is not None:
-            cmd.extend(["--description", description])
-        
-        if status is not None:
-            cmd.extend(["--status", self.STATUS_TO_BEADS[status]])
-        
-        if priority is not None:
-            cmd.extend(["--priority", self.PRIORITY_TO_BEADS[priority]])
-        
-        if labels is not None:
-            cmd.extend(["--labels", ",".join(labels)])
-        
+        # Handle labels separately
         if add_labels:
-            cmd.extend(["--add-labels", ",".join(add_labels)])
+            for label in add_labels:
+                try:
+                    self._run_bd(["label", "add", issue_id, label])
+                except subprocess.CalledProcessError:
+                    pass  # Label might already exist
         
         if remove_labels:
-            cmd.extend(["--remove-labels", ",".join(remove_labels)])
+            for label in remove_labels:
+                try:
+                    self._run_bd(["label", "remove", issue_id, label])
+                except subprocess.CalledProcessError:
+                    pass  # Label might not exist
         
-        result = self._run_bd(cmd)
+        # Replace all labels if labels param is provided
+        if labels is not None:
+            # Get current labels
+            current_issue = self.get_issue(issue_id)
+            if current_issue:
+                current_labels = {label.name for label in current_issue.labels}
+                new_labels = set(labels)
+                
+                # Remove labels not in new set
+                for label in current_labels - new_labels:
+                    try:
+                        self._run_bd(["label", "remove", issue_id, label])
+                    except subprocess.CalledProcessError:
+                        pass
+                
+                # Add labels not in current set
+                for label in new_labels - current_labels:
+                    try:
+                        self._run_bd(["label", "add", issue_id, label])
+                    except subprocess.CalledProcessError:
+                        pass
         
-        issue_data = result.get("issue", {})
-        return self._parse_issue_data(issue_data)
+        # Return updated issue
+        updated = self.get_issue(issue_id)
+        if not updated:
+            raise RuntimeError(f"Failed to retrieve updated issue {issue_id}")
+        
+        return updated
     
     def list_issues(
         self,
@@ -395,26 +395,29 @@ class BeadsAdapter(TaskManagementAdapter):
         """
         List BEADS issues with optional filtering.
         
-        Assumes: bd issue list [--project PROJECT_ID] [--status STATUS]
-                 [--labels LABELS] [--limit LIMIT] --json
+        Uses: bd list --status STATUS --label LABELS --limit LIMIT --json
         """
-        cmd = ["issue", "list"]
+        cmd = ["list"]
         
-        if project_id:
-            cmd.extend(["--project", project_id])
+        # Note: BEADS is project-local, so project_id is ignored
         
         if status:
-            cmd.extend(["--status", self.STATUS_TO_BEADS[status]])
+            beads_status = self.STATUS_TO_BEADS[status]
+            cmd.extend(["--status", beads_status])
         
         if labels:
-            cmd.extend(["--labels", ",".join(labels)])
+            # BEADS --label flag uses AND semantics (must have all labels)
+            cmd.extend(["--label", ",".join(labels)])
         
         cmd.extend(["--limit", str(limit)])
         
         result = self._run_bd(cmd)
         
         issues = []
-        for issue_data in result.get("issues", []):
+        # bd list returns array of issues directly
+        issue_list = result if isinstance(result, list) else result.get("issues", [])
+        
+        for issue_data in issue_list:
             issues.append(self._parse_issue_data(issue_data))
         
         return issues
@@ -425,41 +428,44 @@ class BeadsAdapter(TaskManagementAdapter):
         """
         Create a comment on a BEADS issue.
         
-        Assumes: bd comment create ISSUE_ID --body BODY --json
+        Note: BEADS doesn't have first-class comments in the CLI.
+        This adds a note to the issue's notes field instead.
+        
+        Workaround: Appends to issue description or uses notes field.
         """
-        result = self._run_bd([
-            "comment", "create", issue_id,
-            "--body", body
+        # Get current issue
+        issue = self.get_issue(issue_id)
+        if not issue:
+            raise RuntimeError(f"Issue {issue_id} not found")
+        
+        # Append comment to description
+        timestamp = datetime.now().isoformat()
+        comment_text = f"\n\n---\n**Comment ({timestamp}):**\n{body}"
+        
+        new_description = (issue.description or "") + comment_text
+        
+        self._run_bd([
+            "update", issue_id,
+            "--description", new_description
         ])
         
-        comment_data = result.get("comment", {})
+        # Return synthetic comment
         return Comment(
-            id=comment_data.get("id", ""),
+            id=f"{issue_id}-{timestamp}",
             issue_id=issue_id,
-            body=comment_data.get("body", body),
-            created_at=self._parse_datetime(comment_data.get("createdAt")),
-            author=comment_data.get("author", {}).get("name"),
+            body=body,
+            created_at=datetime.now(),
+            author="system",
         )
     
     def list_comments(self, issue_id: str) -> List[Comment]:
         """
         List all comments on a BEADS issue.
         
-        Assumes: bd comment list ISSUE_ID --json
+        Note: BEADS doesn't have first-class comments.
+        Returns empty list for interface compatibility.
         """
-        result = self._run_bd(["comment", "list", issue_id])
-        
-        comments = []
-        for comment_data in result.get("comments", []):
-            comments.append(Comment(
-                id=comment_data.get("id", ""),
-                issue_id=issue_id,
-                body=comment_data.get("body", ""),
-                created_at=self._parse_datetime(comment_data.get("createdAt")),
-                author=comment_data.get("author", {}).get("name"),
-            ))
-        
-        return comments
+        return []
     
     # ==================== Health Check ====================
     
@@ -467,15 +473,12 @@ class BeadsAdapter(TaskManagementAdapter):
         """
         Test connection to BEADS.
         
-        Assumes: bd auth status
+        Uses: bd info --json to check if database is initialized.
         """
         try:
-            subprocess.run(
-                ["bd", "auth", "status"],
-                capture_output=True,
-                check=True,
-            )
-            return True
+            result = self._run_bd(["info"])
+            # Check if database path exists in output
+            return bool(result.get("database_path"))
         except subprocess.CalledProcessError:
             return False
     
@@ -491,26 +494,51 @@ class BeadsAdapter(TaskManagementAdapter):
             return None
     
     def _parse_issue_data(self, issue_data: dict) -> Issue:
-        """Parse BEADS issue data into generic Issue object."""
-        # Parse labels
+        """
+        Parse BEADS issue data into generic Issue object.
+        
+        BEADS JSON structure:
+        {
+            "id": "bd-a1b2",
+            "title": "Fix bug",
+            "description": "Details here",
+            "status": "open",
+            "priority": 1,
+            "type": "bug",
+            "labels": ["backend", "urgent"],
+            "created_at": "2024-01-15T10:30:00Z",
+            "updated_at": "2024-01-15T11:00:00Z",
+            "assignee": "alice",
+            ...
+        }
+        """
+        # Parse labels (BEADS stores labels as strings, not objects)
         labels = []
-        for label_data in issue_data.get("labels", []):
+        for label_name in issue_data.get("labels", []):
             labels.append(Label(
-                id=label_data.get("id", ""),
-                name=label_data.get("name", ""),
-                color=label_data.get("color"),
-                description=label_data.get("description"),
+                id=label_name,
+                name=label_name,
+                color=None,
+                description=None,
             ))
+        
+        # Extract priority and status
+        raw_priority = issue_data.get("priority", 2)
+        raw_status = issue_data.get("status", "open")
         
         return Issue(
             id=issue_data.get("id", ""),
             title=issue_data.get("title", ""),
             description=issue_data.get("description"),
-            status=self._parse_beads_status(issue_data.get("status", "TODO")),
-            priority=self._parse_beads_priority(issue_data.get("priority", "MEDIUM")),
-            project_id=issue_data.get("projectId"),
+            status=self._parse_beads_status(raw_status),
+            priority=self._parse_beads_priority(raw_priority),
+            project_id=None,  # BEADS is project-local
             labels=labels,
-            created_at=self._parse_datetime(issue_data.get("createdAt")),
-            updated_at=self._parse_datetime(issue_data.get("updatedAt")),
-            metadata=issue_data.get("metadata", {}),
+            created_at=self._parse_datetime(issue_data.get("created_at")),
+            updated_at=self._parse_datetime(issue_data.get("updated_at")),
+            metadata={
+                "type": issue_data.get("type", "task"),
+                "assignee": issue_data.get("assignee"),
+                "beads_version": self.bd_version,
+            },
         )

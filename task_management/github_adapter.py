@@ -98,16 +98,12 @@ class GitHubAdapter(TaskManagementAdapter):
         
         Args:
             args: Command arguments (excluding 'gh')
-            capture_json: If True, add --json flag and parse output
+            capture_json: If True, expect JSON output and parse it
             
         Returns:
             Parsed JSON dict or None
         """
         cmd = ["gh"] + args
-        
-        if capture_json and "--json" not in args:
-            # gh commands usually support --json
-            cmd.append("--json")
         
         result = subprocess.run(
             cmd,
@@ -350,8 +346,9 @@ class GitHubAdapter(TaskManagementAdapter):
         all_labels.extend(self._get_status_labels(status))
         all_labels.extend(self._get_priority_labels(priority))
         
-        for label in all_labels:
-            cmd.extend(["--label", label])
+        if all_labels:
+            # gh issue create accepts multiple --label flags or comma-separated
+            cmd.extend(["--label", ",".join(all_labels)])
         
         result = self._run_gh(cmd, capture_json=False)
         
@@ -429,18 +426,23 @@ class GitHubAdapter(TaskManagementAdapter):
         
         # Handle label operations
         if labels is not None:
-            # Replace all labels
-            label_str = ",".join(labels)
-            cmd.extend(["--label", label_str])
+            # gh issue edit doesn't have --label, need to fetch current and replace
+            # Get current issue to determine what to remove
+            current_issue = self.get_issue(issue_id)
+            current_labels = [label.name for label in current_issue.labels]
+            
+            # Remove all current labels, then add new ones
+            if current_labels:
+                cmd.extend(["--remove-label", ",".join(current_labels)])
+            if labels:
+                cmd.extend(["--add-label", ",".join(labels)])
         else:
             # Add/remove specific labels
             if add_labels:
-                for label in add_labels:
-                    cmd.extend(["--add-label", label])
+                cmd.extend(["--add-label", ",".join(add_labels)])
             
             if remove_labels:
-                for label in remove_labels:
-                    cmd.extend(["--remove-label", label])
+                cmd.extend(["--remove-label", ",".join(remove_labels)])
         
         self._run_gh(cmd, capture_json=False)
         
