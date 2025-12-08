@@ -25,9 +25,14 @@ RATE_LIMIT_BASE_WAIT_SECONDS = 60  # Start with 1 minute
 RATE_LIMIT_MAX_WAIT_SECONDS = 900  # Cap at 15 minutes
 RATE_LIMIT_BACKOFF_MULTIPLIER = 2  # Double wait time on consecutive limits
 
+# Smart wait thresholds (in minutes)
+WAIT_THRESHOLD_AUTO = 30  # ≤30 min: auto-wait with countdown
+WAIT_THRESHOLD_OPTIONAL = 120  # ≤2 hours: wait but allow Ctrl+C exit
+# >2 hours: auto-exit with resume instructions
+
 
 class RateLimitHandler:
-    """Handles rate limit detection and exponential backoff."""
+    """Handles rate limit detection with smart wait/exit decisions."""
 
     def __init__(self):
         self.consecutive_rate_limits = 0
@@ -50,11 +55,19 @@ class RateLimitHandler:
             r"retry.{0,10}after.{0,5}(\d+)\s*(?:second|sec|s)",
             r"reset.{0,10}in.{0,5}(\d+)\s*(?:second|sec|s)",
             r"wait.{0,10}(\d+)\s*(?:second|sec|s)",
+            r"resets.{0,10}(\d+)\s*(?:minute|min)",
+            r"resets.{0,10}(\d+)\s*(?:hour|hr|h)",
         ]
         for pattern in patterns:
             match = re.search(pattern, content.lower())
             if match:
-                return int(match.group(1))
+                seconds = int(match.group(1))
+                # Detect if it's hours or minutes based on pattern
+                if 'hour' in pattern or ' h)' in pattern:
+                    seconds *= 3600
+                elif 'minute' in pattern:
+                    seconds *= 60
+                return seconds
         return None
 
     def get_wait_time(self, content: str) -> int:
@@ -70,25 +83,76 @@ class RateLimitHandler:
         )
         return min(wait, RATE_LIMIT_MAX_WAIT_SECONDS)
 
-    async def handle_rate_limit(self, content: str) -> None:
-        """Handle a rate limit by waiting appropriately."""
+    def should_exit_for_long_wait(self, wait_seconds: int) -> bool:
+        """Decide if wait is too long and should exit instead."""
+        wait_minutes = wait_seconds / 60
+        return wait_minutes > WAIT_THRESHOLD_OPTIONAL
+
+    async def handle_rate_limit(self, content: str) -> tuple[str, int]:
+        """
+        Handle a rate limit by waiting appropriately or recommending exit.
+        
+        Returns:
+            (action, wait_time) where action is "wait" or "exit"
+        """
         self.consecutive_rate_limits += 1
         wait_time = self.get_wait_time(content)
+        wait_minutes = wait_time / 60
+        wait_hours = wait_minutes / 60
 
-        print(f"\n{'='*50}")
+        print(f"\n{'='*70}")
         print(f"  RATE LIMIT DETECTED (#{self.consecutive_rate_limits})")
-        print(f"  Waiting {wait_time} seconds before continuing...")
-        print(f"{'='*50}\n")
+        print(f"{'='*70}\n")
 
-        # Show countdown for long waits
-        if wait_time > 30:
-            for remaining in range(wait_time, 0, -30):
-                print(f"  ... {remaining}s remaining", flush=True)
-                await asyncio.sleep(min(30, remaining))
+        # Smart decision based on wait time
+        if wait_minutes <= WAIT_THRESHOLD_AUTO:
+            # Short wait: auto-wait with countdown
+            print(f"  Wait time: {wait_minutes:.1f} minutes ({wait_time}s)")
+            print(f"  Decision: Auto-waiting (short duration)\n")
+            
+            # Show countdown for waits > 30s
+            if wait_time > 30:
+                for remaining in range(wait_time, 0, -30):
+                    mins = remaining / 60
+                    print(f"  ... {mins:.1f} minutes ({remaining}s) remaining", flush=True)
+                    await asyncio.sleep(min(30, remaining))
+            else:
+                await asyncio.sleep(wait_time)
+            
+            print("  Rate limit wait complete. Resuming...\n")
+            return ("wait", wait_time)
+
+        elif wait_minutes <= WAIT_THRESHOLD_OPTIONAL:
+            # Medium wait: wait but inform user they can exit
+            print(f"  Wait time: {wait_minutes:.1f} minutes ({wait_hours:.2f} hours)")
+            print(f"  Decision: Waiting, but you can press Ctrl+C to exit\n")
+            print(f"  To resume later, run the same command again.")
+            print(f"  Progress is saved in Linear.\n")
+
+            try:
+                for remaining in range(wait_time, 0, -60):
+                    mins = remaining / 60
+                    print(f"  ... {mins:.1f} minutes remaining (Ctrl+C to exit)", flush=True)
+                    await asyncio.sleep(min(60, remaining))
+                
+                print("  Rate limit wait complete. Resuming...\n")
+                return ("wait", wait_time)
+            except KeyboardInterrupt:
+                print("\n\n  User interrupted. Exiting gracefully...")
+                return ("exit", wait_time)
+
         else:
-            await asyncio.sleep(wait_time)
-
-        print("  Rate limit wait complete. Resuming...\n")
+            # Long wait: auto-exit with instructions
+            print(f"  Wait time: {wait_hours:.1f} hours ({wait_minutes:.0f} minutes)")
+            print(f"  Decision: Wait too long, exiting gracefully\n")
+            print(f"  {'='*70}")
+            print(f"  TO RESUME LATER:")
+            print(f"  {'='*70}")
+            print(f"  Run the same command after the rate limit resets.")
+            print(f"  All progress is saved in Linear and will continue from where it left off.\n")
+            print(f"  Estimated reset: ~{wait_hours:.1f} hours from now\n")
+            
+            return ("exit", wait_time)
 
     def reset(self) -> None:
         """Reset consecutive rate limit counter (call after successful request)."""
@@ -206,7 +270,11 @@ async def run_agent_session(
                             # Check for rate limit errors
                             if rate_limit_handler.is_rate_limit_error(result_str):
                                 print(f"   [Rate Limited] {result_str[:200]}", flush=True)
-                                await rate_limit_handler.handle_rate_limit(result_str)
+                                action, wait_time = await rate_limit_handler.handle_rate_limit(result_str)
+                                
+                                if action == "exit":
+                                    print("\nExiting due to long rate limit wait...")
+                                    return "rate_limit_exit", result_str
                             else:
                                 # Show other errors (truncated)
                                 error_str = result_str[:500]
@@ -316,6 +384,11 @@ async def run_autonomous_agent(
             print("\nSession encountered an error")
             print("Will retry with a fresh session...")
             await asyncio.sleep(AUTO_CONTINUE_DELAY_SECONDS)
+
+        elif status == "rate_limit_exit":
+            print("\nSession terminated due to long rate limit wait.")
+            print("Run the same command again when the rate limit resets.")
+            break
 
         # Small delay between sessions
         if max_iterations is None or iteration < max_iterations:
