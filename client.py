@@ -99,8 +99,11 @@ def create_client(project_dir: Path, model: str) -> ClaudeSDKClient:
     # Create comprehensive security settings
     # Note: Using relative paths ("./**") restricts access to project directory
     # since cwd is set to project_dir
+    # Sandbox disabled - causes path mapping issues. Security still enforced via:
+    # - Bash allowlist (security.py)
+    # - File permissions restricted to project dir (./**)
     security_settings = {
-        "sandbox": {"enabled": True, "autoAllowBashIfSandboxed": True},
+        "sandbox": {"enabled": False},
         "permissions": {
             "defaultMode": "acceptEdits",  # Auto-approve edits within allowed directories
             "allow": [
@@ -130,7 +133,6 @@ def create_client(project_dir: Path, model: str) -> ClaudeSDKClient:
         json.dump(security_settings, f, indent=2)
 
     print(f"Created security settings at {settings_file}")
-    print("   - Sandbox enabled (OS-level bash isolation)")
     print(f"   - Filesystem restricted to: {project_dir.resolve()}")
     print("   - Bash commands restricted to allowlist (see security.py)")
     print("   - MCP servers: puppeteer (browser automation), linear (project management)")
