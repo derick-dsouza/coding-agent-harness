@@ -3,6 +3,24 @@
   
   "spec_file": "app_spec.txt",
   
+  "_task_manager_comment": "Task management adapter: 'linear', 'github', or 'beads'",
+  "task_manager": "linear",
+  
+  "_task_manager_config_comment": "Configuration for each task manager adapter",
+  "task_manager_config": {
+    "linear": {
+      "team_name": "YOUR_TEAM_NAME",
+      "project_name": "YOUR_PROJECT_NAME"
+    },
+    "github": {
+      "owner": "YOUR_GITHUB_ORG",
+      "repo": "YOUR_REPO_NAME"
+    },
+    "beads": {
+      "project_id": "YOUR_PROJECT_ID"
+    }
+  },
+  
   "_models_comment": "Use different models for initialization, coding, and audit sessions",
   "initializer_model": "claude-opus-4-5-20251101",
   "coding_model": "claude-sonnet-4-5-20250929",

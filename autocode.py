@@ -74,14 +74,27 @@ Config File (.autocode-config.json):
     "coding_model": "claude-sonnet-4-5-20250929",
     "audit_model": "claude-opus-4-5-20251101",
     "max_iterations": 10,
-    "task_adapter": "linear"
+    "task_manager": "linear",
+    "task_manager_config": {
+      "linear": {
+        "team_name": "YOUR_TEAM_NAME",
+        "project_name": "YOUR_PROJECT_NAME"
+      },
+      "github": {
+        "owner": "YOUR_GITHUB_ORG",
+        "repo": "YOUR_REPO_NAME"
+      },
+      "beads": {
+        "workspace": "YOUR_WORKSPACE_ID"
+      }
+    }
   }
 
   Or use single model for all sessions:
   {
     "spec_file": "my_spec.txt",
     "model": "claude-opus-4-5-20251101",
-    "task_adapter": "linear"
+    "task_manager": "linear"
   }
 
   Priority: CLI arguments > config file > defaults
@@ -90,7 +103,7 @@ Environment Variables:
   CLAUDE_CODE_OAUTH_TOKEN    Claude Code OAuth token (required)
   LINEAR_API_KEY             Linear API key (required for Linear adapter)
   TASK_ADAPTER_TYPE          Task management adapter to use (default: linear)
-                             Options: linear, jira, github (only linear implemented currently)
+                             Options: linear, github, beads
         """,
     )
 
@@ -147,7 +160,7 @@ Environment Variables:
         "--task-adapter",
         type=str,
         default=None,
-        help="Task management adapter (default: linear). Options: linear, jira, github. Note: Only linear is currently implemented.",
+        help="Task management adapter (default: linear). Options: linear, github, beads.",
     )
 
     return parser.parse_args()
@@ -295,19 +308,22 @@ def resolve_config(
             print(f"  3. Use --spec-file argument")
         return None
 
-    # Resolve task_adapter: CLI > config > env > default
+    # Resolve task_manager: CLI > config > env > default
     if args.task_adapter is not None:
-        resolved["task_adapter"] = args.task_adapter
-        print(f"Using task_adapter from CLI: {args.task_adapter}")
-    elif "task_adapter" in config:
-        resolved["task_adapter"] = config["task_adapter"]
-        print(f"Using task_adapter from {CONFIG_FILE}: {config['task_adapter']}")
+        resolved["task_manager"] = args.task_adapter
+        print(f"Using task_manager from CLI: {args.task_adapter}")
+    elif "task_manager" in config:
+        resolved["task_manager"] = config["task_manager"]
+        print(f"Using task_manager from {CONFIG_FILE}: {config['task_manager']}")
     elif os.environ.get("TASK_ADAPTER_TYPE"):
-        resolved["task_adapter"] = os.environ["TASK_ADAPTER_TYPE"]
-        print(f"Using task_adapter from TASK_ADAPTER_TYPE env: {os.environ['TASK_ADAPTER_TYPE']}")
+        resolved["task_manager"] = os.environ["TASK_ADAPTER_TYPE"]
+        print(f"Using task_manager from TASK_ADAPTER_TYPE env: {os.environ['TASK_ADAPTER_TYPE']}")
     else:
-        resolved["task_adapter"] = "linear"
-        print(f"Using default task_adapter: linear")
+        resolved["task_manager"] = "linear"
+        print(f"Using default task_manager: linear")
+
+    # Resolve task_manager_config: config file only (not from CLI/env)
+    resolved["task_manager_config"] = config.get("task_manager_config", {})
 
     return resolved
 
@@ -347,10 +363,11 @@ def main() -> None:
     if resolved is None:
         return
 
-    # Check for task adapter-specific requirements
-    task_adapter = resolved.get("task_adapter", "linear")
+    # Check for task manager-specific requirements
+    task_manager = resolved.get("task_manager", "linear")
+    task_manager_config = resolved.get("task_manager_config", {})
     
-    if task_adapter == "linear":
+    if task_manager == "linear":
         # Check for Linear API key
         if not os.environ.get("LINEAR_API_KEY"):
             print("Error: LINEAR_API_KEY environment variable not set")
@@ -359,21 +376,34 @@ def main() -> None:
             print("\nThen set it:")
             print("  export LINEAR_API_KEY='lin_api_xxxxxxxxxxxxx'")
             return
-    elif task_adapter == "jira":
-        print("Error: Jira adapter not yet implemented")
-        print("Currently supported adapters: linear")
-        return
-    elif task_adapter == "github":
-        print("Error: GitHub adapter not yet implemented")
-        print("Currently supported adapters: linear")
-        return
+    elif task_manager == "github":
+        # GitHub uses gh CLI, validate config has owner/repo
+        github_config = task_manager_config.get("github", {})
+        if not github_config.get("owner") or not github_config.get("repo"):
+            print("Error: GitHub adapter requires 'owner' and 'repo' in task_manager_config")
+            print(f"\nAdd to {CONFIG_FILE}:")
+            print('  "task_manager_config": {')
+            print('    "github": {')
+            print('      "owner": "your-github-org",')
+            print('      "repo": "your-repo-name"')
+            print('    }')
+            print('  }')
+            return
+        # Set environment variables for factory
+        os.environ["GITHUB_OWNER"] = github_config["owner"]
+        os.environ["GITHUB_REPO"] = github_config["repo"]
+    elif task_manager == "beads":
+        # BEADS uses bd CLI, workspace is optional
+        beads_config = task_manager_config.get("beads", {})
+        if beads_config.get("workspace"):
+            os.environ["BEADS_WORKSPACE"] = beads_config["workspace"]
     else:
-        print(f"Error: Unknown task adapter: {task_adapter}")
-        print("Currently supported adapters: linear")
+        print(f"Error: Unknown task manager: {task_manager}")
+        print("Currently supported task managers: linear, github, beads")
         return
 
     # Set environment variable for task adapter (used by agent)
-    os.environ["TASK_ADAPTER_TYPE"] = task_adapter
+    os.environ["TASK_ADAPTER_TYPE"] = task_manager
 
     # Run the agent
     try:
