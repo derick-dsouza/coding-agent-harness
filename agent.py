@@ -97,8 +97,50 @@ class RateLimitHandler:
         self.consecutive_rate_limits = 0
 
 
+class LinearInitializationHandler:
+    """Handles Linear project initialization checks and guidance."""
+
+    def __init__(self):
+        self.initialization_attempts = 0
+        self.max_init_attempts = 1
+
+    def is_linear_uninitialized(self, project_dir: Path) -> bool:
+        """Check if Linear project needs initialization."""
+        return not is_linear_initialized(project_dir)
+
+    def print_initialization_warning(self, project_dir: Path) -> None:
+        """Print guidance for Linear initialization."""
+        self.initialization_attempts += 1
+
+        print(f"\n{'='*70}")
+        print(f"  LINEAR PROJECT INITIALIZATION REQUIRED")
+        print(f"{'='*70}\n")
+
+        print("The Linear project has not been initialized yet.")
+        print("\nTo initialize, run the Linear query script:")
+        print("  python query_linear.py --init\n")
+
+        print("This will:")
+        print("  1. Connect to your Linear workspace")
+        print("  2. Create a new project for this task")
+        print("  3. Generate initial issues from the specification")
+        print("  4. Save the project state locally\n")
+
+        print("Once initialized, the agent will:")
+        print("  - Track progress in Linear")
+        print("  - Update issue statuses automatically")
+        print("  - Create session summaries as Linear comments\n")
+
+        print(f"Environment requirement: LINEAR_API_KEY must be set\n")
+
+    def should_wait_for_init(self) -> bool:
+        """Check if we should continue waiting for initialization."""
+        return self.initialization_attempts < self.max_init_attempts
+
+
 # Global rate limit handler for the session
 rate_limit_handler = RateLimitHandler()
+linear_init_handler = LinearInitializationHandler()
 
 
 async def run_agent_session(
@@ -258,8 +300,17 @@ async def run_autonomous_agent(
         # Handle status
         if status == "continue":
             print(f"\nAgent will auto-continue in {AUTO_CONTINUE_DELAY_SECONDS}s...")
-            print_progress_summary(project_dir)
-            await asyncio.sleep(AUTO_CONTINUE_DELAY_SECONDS)
+            
+            # Check if Linear needs initialization
+            if linear_init_handler.is_linear_uninitialized(project_dir):
+                linear_init_handler.print_initialization_warning(project_dir)
+                if not linear_init_handler.should_wait_for_init():
+                    print("\nTo proceed, initialize Linear using the command above.")
+                    break
+                await asyncio.sleep(AUTO_CONTINUE_DELAY_SECONDS)
+            else:
+                print_progress_summary(project_dir)
+                await asyncio.sleep(AUTO_CONTINUE_DELAY_SECONDS)
 
         elif status == "error":
             print("\nSession encountered an error")
