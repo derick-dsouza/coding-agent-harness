@@ -10,14 +10,17 @@ from typing import Optional
 
 from .interface import TaskManagementAdapter
 from .linear_adapter import LinearAdapter
+from .github_adapter import GitHubAdapter
+from .beads_adapter import BeadsAdapter
 
 
 class AdapterType:
     """Supported adapter types."""
     LINEAR = "linear"
+    GITHUB = "github"
+    BEADS = "beads"
     # Future adapters:
     # JIRA = "jira"
-    # GITHUB = "github"
     # ASANA = "asana"
 
 
@@ -30,15 +33,17 @@ def create_adapter(
     Create a task management adapter.
     
     Args:
-        adapter_type: Type of adapter ("linear", "jira", "github", etc.)
+        adapter_type: Type of adapter ("linear", "github", "beads", etc.)
         api_key: API key for the service (if None, reads from environment)
         **kwargs: Additional adapter-specific configuration
+            - For GitHub: owner (str), repo (str)
+            - For BEADS: workspace (str, optional)
         
     Returns:
         TaskManagementAdapter instance
         
     Raises:
-        ValueError: If adapter_type is not supported
+        ValueError: If adapter_type is not supported or required kwargs missing
         
     Examples:
         # Create Linear adapter (reads LINEAR_API_KEY from env)
@@ -47,24 +52,36 @@ def create_adapter(
         # Create Linear adapter with explicit API key
         adapter = create_adapter("linear", api_key="lin_api_...")
         
-        # Future: Create Jira adapter
-        # adapter = create_adapter("jira", api_key="jira_token", url="https://company.atlassian.net")
+        # Create GitHub adapter (uses gh CLI, no API key needed)
+        adapter = create_adapter("github", owner="myorg", repo="myrepo")
+        
+        # Create BEADS adapter (uses bd CLI, optional workspace)
+        adapter = create_adapter("beads", workspace="my-workspace")
     """
     adapter_type = adapter_type.lower()
     
     if adapter_type == AdapterType.LINEAR:
         return LinearAdapter(api_key=api_key)
     
+    elif adapter_type == AdapterType.GITHUB:
+        owner = kwargs.get("owner")
+        repo = kwargs.get("repo")
+        if not owner or not repo:
+            raise ValueError("GitHub adapter requires 'owner' and 'repo' kwargs")
+        return GitHubAdapter(owner=owner, repo=repo)
+    
+    elif adapter_type == AdapterType.BEADS:
+        workspace = kwargs.get("workspace")
+        return BeadsAdapter(workspace=workspace)
+    
     # Future adapter types:
-    # elif adapter_type == AdapterType.JIRA:
+    # elif adapter_type == "jira":
     #     return JiraAdapter(api_key=api_key, url=kwargs.get("url"))
-    # elif adapter_type == AdapterType.GITHUB:
-    #     return GitHubAdapter(api_key=api_key, repo=kwargs.get("repo"))
     
     else:
         raise ValueError(
             f"Unsupported adapter type: {adapter_type}. "
-            f"Supported types: {AdapterType.LINEAR}"
+            f"Supported types: {AdapterType.LINEAR}, {AdapterType.GITHUB}, {AdapterType.BEADS}"
         )
 
 
@@ -72,11 +89,18 @@ def get_adapter_from_env() -> TaskManagementAdapter:
     """
     Create adapter based on environment variables.
     
-    Checks for:
-    - TASK_ADAPTER_TYPE (default: "linear")
-    - LINEAR_API_KEY (for Linear adapter)
-    - JIRA_API_KEY + JIRA_URL (for Jira adapter)
-    - GITHUB_TOKEN (for GitHub adapter)
+    Environment Variables:
+    - TASK_ADAPTER_TYPE: "linear", "github", or "beads" (default: "linear")
+    
+    Linear:
+    - LINEAR_API_KEY: Linear API key
+    
+    GitHub:
+    - GITHUB_OWNER: Repository owner
+    - GITHUB_REPO: Repository name
+    
+    BEADS:
+    - BEADS_WORKSPACE: Workspace ID (optional)
     
     Returns:
         TaskManagementAdapter instance
@@ -88,6 +112,17 @@ def get_adapter_from_env() -> TaskManagementAdapter:
         if not api_key:
             raise ValueError("LINEAR_API_KEY environment variable not set")
         return LinearAdapter(api_key=api_key)
+    
+    elif adapter_type == AdapterType.GITHUB:
+        owner = os.getenv("GITHUB_OWNER")
+        repo = os.getenv("GITHUB_REPO")
+        if not owner or not repo:
+            raise ValueError("GITHUB_OWNER and GITHUB_REPO environment variables must be set")
+        return GitHubAdapter(owner=owner, repo=repo)
+    
+    elif adapter_type == AdapterType.BEADS:
+        workspace = os.getenv("BEADS_WORKSPACE")
+        return BeadsAdapter(workspace=workspace)
     
     # Future adapters:
     # elif adapter_type == "jira":

@@ -1,15 +1,16 @@
-# Autonomous Coding Agent Demo (Linear-Integrated)
+# Autonomous Coding Agent Demo (Task Management Integrated)
 
-A minimal harness demonstrating long-running autonomous coding with the Claude Agent SDK. This demo implements a two-agent pattern (initializer + coding agent) with **Linear as the core project management system** for tracking all work.
+A minimal harness demonstrating long-running autonomous coding with the Claude Agent SDK. This demo implements a two-agent pattern (initializer + coding agent) with **pluggable task management** (Linear, GitHub Issues, BEADS) for tracking all work.
 
 ## Key Features
 
-- **Linear Integration**: All work is tracked as Linear issues, not local files
-- **Real-time Visibility**: Watch agent progress directly in your Linear workspace
-- **Session Handoff**: Agents communicate via Linear comments, not text files
-- **Two-Agent Pattern**: Initializer creates Linear project & issues, coding agents implement them
+- **Multi-Platform Task Management**: Support for Linear, GitHub Issues, BEADS (adapter pattern)
+- **Real-time Visibility**: Watch agent progress in your task management system
+- **Session Handoff**: Agents communicate via issue comments, not text files
+- **Two-Agent Pattern**: Initializer creates project & issues, coding agents implement them
 - **Browser Testing**: Puppeteer MCP for UI verification
-- **Claude Opus 4.5**: Uses Claude's most capable model by default
+- **Configurable Models**: Use different Claude models for initialization, coding, and auditing
+- **CLI-First**: GitHub and BEADS adapters use CLI tools (no API keys needed)
 
 ## Prerequisites
 
@@ -25,7 +26,7 @@ pip install -r requirements.txt
 
 ### 2. Set Up Authentication
 
-You need two authentication tokens:
+You need authentication for Claude Code and your chosen task management platform:
 
 **Claude Code OAuth Token:**
 ```bash
@@ -36,10 +37,34 @@ claude setup-token
 export CLAUDE_CODE_OAUTH_TOKEN='your-oauth-token-here'
 ```
 
-**Linear API Key:**
+**Task Management Platform (choose one):**
+
+**Option 1: Linear (API-based)**
 ```bash
 # Get your API key from: https://linear.app/YOUR-TEAM/settings/api
+export TASK_ADAPTER_TYPE="linear"
 export LINEAR_API_KEY='lin_api_xxxxxxxxxxxxx'
+```
+
+**Option 2: GitHub Issues (CLI-based, no API key needed)**
+```bash
+export TASK_ADAPTER_TYPE="github"
+export GITHUB_OWNER="your-org"
+export GITHUB_REPO="your-repo"
+
+# Authenticate GitHub CLI
+brew install gh  # macOS
+gh auth login
+```
+
+**Option 3: BEADS (CLI-based, no API key needed)**
+```bash
+export TASK_ADAPTER_TYPE="beads"
+export BEADS_WORKSPACE="your-workspace"  # Optional
+
+# Install and authenticate BEADS CLI
+# (Installation method depends on BEADS distribution)
+bd auth login
 ```
 
 ### 3. Verify Installation
@@ -62,64 +87,105 @@ python autonomous_agent_demo.py --project-dir ./my_project --max-iterations 3
 
 ## How It Works
 
-### Linear-Centric Workflow
+### Task Management Workflow
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                    LINEAR-INTEGRATED WORKFLOW               │
-├─────────────────────────────────────────────────────────────┤
-│  app_spec.txt ──► Initializer Agent ──► Linear Issues (50) │
-│                                              │               │
-│                    ┌─────────────────────────▼──────────┐   │
-│                    │        LINEAR WORKSPACE            │   │
-│                    │  ┌────────────────────────────┐    │   │
-│                    │  │ Issue: Auth - Login flow   │    │   │
-│                    │  │ Status: Todo → In Progress │    │   │
-│                    │  │ Comments: [session notes]  │    │   │
-│                    │  └────────────────────────────┘    │   │
-│                    └────────────────────────────────────┘   │
-│                                              │               │
-│                    Coding Agent queries Linear              │
-│                    ├── Search for Todo issues               │
-│                    ├── Update status to In Progress         │
-│                    ├── Implement & test with Puppeteer      │
-│                    ├── Add comment with implementation notes│
-│                    └── Update status to Done                │
-└─────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────┐
+│              TASK MANAGEMENT INTEGRATED WORKFLOW                 │
+├──────────────────────────────────────────────────────────────────┤
+│  app_spec.* ──► Initializer Agent ──► Issues (50) in System     │
+│                    (txt/md/yaml)           │                     │
+│                                            │                     │
+│                    ┌───────────────────────▼──────────────┐     │
+│                    │    TASK MANAGEMENT SYSTEM            │     │
+│                    │    (Linear / GitHub / BEADS)         │     │
+│                    │  ┌──────────────────────────────┐    │     │
+│                    │  │ Issue: Auth - Login flow     │    │     │
+│                    │  │ Status: TODO → IN_PROGRESS   │    │     │
+│                    │  │ Priority: HIGH               │    │     │
+│                    │  │ Comments: [session notes]    │    │     │
+│                    │  └──────────────────────────────┘    │     │
+│                    └──────────────────────────────────────┘     │
+│                                            │                     │
+│                    Coding Agent queries system                   │
+│                    ├── Search for TODO issues                    │
+│                    ├── Update status to IN_PROGRESS              │
+│                    ├── Implement & test with Puppeteer           │
+│                    ├── Add comment with implementation notes     │
+│                    └── Update status to DONE                     │
+└──────────────────────────────────────────────────────────────────┘
 ```
 
 ### Two-Agent Pattern
 
 1. **Initializer Agent (Session 1):**
-   - Reads `app_spec.txt`
-   - Lists teams and creates a new Linear project
-   - Creates 50 Linear issues with detailed test steps
+   - Reads `app_spec.*` (txt, md, yaml)
+   - Lists teams and creates a new project
+   - Creates 50 issues with detailed test steps
    - Creates a META issue for session tracking
    - Sets up project structure, `init.sh`, and git
 
 2. **Coding Agent (Sessions 2+):**
-   - Queries Linear for highest-priority Todo issue
+   - Queries task system for highest-priority TODO issue
    - Runs verification tests on previously completed features
-   - Claims issue (status → In Progress)
+   - Claims issue (status → IN_PROGRESS)
    - Implements the feature
    - Tests via Puppeteer browser automation
-   - Adds implementation comment to issue
-   - Marks complete (status → Done)
+   - Marks complete (status → DONE)
    - Updates META issue with session summary
 
-### Session Handoff via Linear
+### Session Handoff via Task Management
 
 Instead of local text files, agents communicate through:
 - **Issue Comments**: Implementation details, blockers, context
 - **META Issue**: Session summaries and handoff notes
-- **Issue Status**: Todo / In Progress / Done workflow
+- **Issue Status**: TODO / IN_PROGRESS / DONE workflow
+- **Labels**: Priority, categorization, and custom tags
+
+## Task Management System
+
+The harness uses a **pluggable adapter pattern** to support multiple task management platforms:
+
+| Platform | Type | Authentication | Documentation |
+|----------|------|----------------|---------------|
+| **Linear** | MCP/API | API Key | Production-ready |
+| **GitHub Issues** | CLI (`gh`) | OAuth | [Guide](task_management/GITHUB_ADAPTER.md) |
+| **BEADS** | CLI (`bd`) | Token | [Template](task_management/BEADS_ADAPTER.md) |
+
+### Switching Platforms
+
+Change task management system via environment variable:
+
+```bash
+# Use Linear
+export TASK_ADAPTER_TYPE="linear"
+export LINEAR_API_KEY="lin_api_xxxxx"
+
+# Use GitHub Issues
+export TASK_ADAPTER_TYPE="github"
+export GITHUB_OWNER="myorg"
+export GITHUB_REPO="myrepo"
+
+# Use BEADS
+export TASK_ADAPTER_TYPE="beads"
+export BEADS_WORKSPACE="workspace-id"
+```
+
+See [task_management/README.md](task_management/README.md) for complete documentation.
 
 ## Environment Variables
 
 | Variable | Description | Required |
 |----------|-------------|----------|
 | `CLAUDE_CODE_OAUTH_TOKEN` | Claude Code OAuth token (from `claude setup-token`) | Yes |
-| `LINEAR_API_KEY` | Linear API key for MCP access | Yes |
+| `TASK_ADAPTER_TYPE` | Task management platform: `linear`, `github`, or `beads` | Yes |
+| **Linear-specific** |||
+| `LINEAR_API_KEY` | Linear API key for MCP access | If using Linear |
+| **GitHub-specific** |||
+| `GITHUB_OWNER` | Repository owner (org or user) | If using GitHub |
+| `GITHUB_REPO` | Repository name | If using GitHub |
+| **BEADS-specific** |||
+| `BEADS_WORKSPACE` | Workspace identifier (optional) | If using BEADS |
 
 ## Command Line Options
 
@@ -132,18 +198,32 @@ Instead of local text files, agents communicate through:
 ## Project Structure
 
 ```
-linear-agent-harness/
+coding-agent-harness/
 ├── autonomous_agent_demo.py  # Main entry point
 ├── agent.py                  # Agent session logic
 ├── client.py                 # Claude SDK + MCP client configuration
 ├── security.py               # Bash command allowlist and validation
 ├── progress.py               # Progress tracking utilities
 ├── prompts.py                # Prompt loading utilities
-├── linear_config.py          # Linear configuration constants
+├── linear_config.py          # Linear configuration constants (legacy)
+├── task_management/          # Task management adapter system
+│   ├── __init__.py           # Public API
+│   ├── interface.py          # Generic interface (TaskManagementAdapter)
+│   ├── linear_adapter.py     # Linear implementation (MCP-based)
+│   ├── github_adapter.py     # GitHub Issues implementation (CLI-based)
+│   ├── beads_adapter.py      # BEADS implementation (CLI-based)
+│   ├── factory.py            # Adapter factory
+│   ├── README.md             # Full documentation
+│   ├── GITHUB_ADAPTER.md     # GitHub-specific guide
+│   ├── BEADS_ADAPTER.md      # BEADS-specific guide
+│   ├── TERMINOLOGY_MAPPING.md # Cross-platform terminology
+│   ├── PROMPT_GUIDELINES.md  # Writing adapter-agnostic prompts
+│   └── MIGRATION_PLAN.md     # Migration checklist
 ├── prompts/
 │   ├── app_spec.txt          # Application specification
-│   ├── initializer_prompt.md # First session prompt (creates Linear issues)
-│   └── coding_prompt.md      # Continuation session prompt (works issues)
+│   ├── initializer_prompt.md # First session prompt (creates issues)
+│   ├── coding_prompt.md      # Continuation session prompt (works issues)
+│   └── audit_prompt.md       # Audit session prompt (reviews work)
 └── requirements.txt          # Python dependencies
 ```
 
@@ -153,8 +233,8 @@ After running, your project directory will contain:
 
 ```
 my_project/
-├── .linear_project.json      # Linear project state (marker file)
-├── app_spec.txt              # Copied specification
+├── .task_project.json        # Task management project state (marker file)
+├── app_spec.*                # Copied specification (txt, md, or yaml)
 ├── init.sh                   # Environment setup script
 ├── .claude_settings.json     # Security settings
 └── [application files]       # Generated application code
@@ -162,10 +242,12 @@ my_project/
 
 ## MCP Servers Used
 
-| Server | Transport | Purpose |
-|--------|-----------|---------|
-| **Linear** | HTTP (Streamable HTTP) | Project management - issues, status, comments |
-| **Puppeteer** | stdio | Browser automation for UI testing |
+| Server | Transport | Purpose | Used By |
+|--------|-----------|---------|---------|
+| **Linear** | HTTP (Streamable HTTP) | Project management - issues, status, comments | Linear adapter |
+| **Puppeteer** | stdio | Browser automation for UI testing | All adapters |
+
+**Note:** GitHub and BEADS adapters use CLI tools (`gh`, `bd`) instead of MCP servers.
 
 ## Security Model
 

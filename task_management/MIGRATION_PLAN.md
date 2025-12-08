@@ -11,10 +11,14 @@ task management terminology that works with any adapter (Linear, Jira, GitHub, e
 
 - [x] `task_management/interface.py` - Generic interface
 - [x] `task_management/linear_adapter.py` - Linear implementation
+- [x] `task_management/github_adapter.py` - GitHub implementation (CLI-based)
+- [x] `task_management/beads_adapter.py` - BEADS implementation (CLI-based)
 - [x] `task_management/factory.py` - Adapter factory
 - [x] `task_management/__init__.py` - Public API
 - [x] `task_management/TERMINOLOGY_MAPPING.md` - Mapping documentation
 - [x] `task_management/PROMPT_GUIDELINES.md` - Prompt writing guide
+- [x] `task_management/GITHUB_ADAPTER.md` - GitHub adapter documentation
+- [x] `task_management/BEADS_ADAPTER.md` - BEADS adapter documentation
 
 ### Prompts to Update ⏳ TODO
 
