@@ -373,6 +373,34 @@ rate_limit_handler = UnifiedRateLimitHandler()
 task_init_handler = TaskInitializationHandler()
 
 
+def has_work_to_do(project_dir: Path, is_first_run: bool) -> bool:
+    """
+    Check if there's any work for the agent to do.
+    
+    Returns:
+        True if there's work to do, False if project is complete
+    """
+    from progress import load_task_project_state
+    
+    # First run always has work (initialization)
+    if is_first_run:
+        return True
+    
+    state = load_task_project_state(project_dir)
+    if not state or not state.get("initialized"):
+        return True  # Needs initialization
+    
+    # Check if there's an audit to run
+    if should_run_audit(project_dir):
+        return True
+    
+    # Check if there are any in-progress or todo issues
+    in_progress = state.get("in_progress", 0)
+    todo = state.get("todo", 0)
+    
+    return (in_progress + todo) > 0
+
+
 def should_run_audit(project_dir: Path) -> bool:
     """
     Check if it's time to run an audit session.
@@ -622,6 +650,18 @@ async def run_autonomous_agent(
         if max_iterations and iteration > max_iterations:
             print(f"\nReached max iterations ({max_iterations})")
             print("To continue, run the script again without --max-iterations")
+            break
+
+        # Check if there's work to do (skip on first run to allow initialization)
+        if iteration > 1 and not has_work_to_do(project_dir, is_first_run):
+            print("\n" + "=" * 70)
+            print("  ✅ ALL WORK COMPLETE")
+            print("=" * 70)
+            print("\nNo pending tasks or audits found.")
+            print("All features have been implemented and audited.")
+            print("\nTo add new features:")
+            print("  1. Update your app_spec.txt file")
+            print("  2. Run the script again - it will detect changes and create new issues")
             break
 
         # Print session header

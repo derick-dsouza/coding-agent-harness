@@ -141,7 +141,8 @@ def prompt_task_adapter(defaults: dict) -> tuple[str, dict]:
 
 def prompt_models(defaults: dict) -> tuple[str, str, str]:
     """Prompt user to select models for initializer, coding, and audit"""
-    models = defaults["models"]["claude"]
+    agent_sdk = defaults.get("defaults", {}).get("agent_sdk", "claude-agent-sdk")
+    models = defaults.get("agent_sdks", {}).get(agent_sdk, {}).get("models", {})
     model_choices = list(models.keys())
     
     print("\n" + "="*70)
@@ -200,11 +201,12 @@ def create_config(project_dir: Path) -> dict:
     initializer, coding, audit = prompt_models(defaults)
     
     # Map model names to actual model IDs
-    model_map = defaults["models"]["claude"]
+    agent_sdk = defaults.get("defaults", {}).get("agent_sdk", "claude-agent-sdk")
+    model_map = defaults.get("agent_sdks", {}).get(agent_sdk, {}).get("models", {})
     
     # Build configuration
     config = {
-        "agent_sdk": defaults["agent_sdk"],
+        "agent_sdk": agent_sdk,
         "task_adapter": task_adapter,
         "task_adapter_config": {
             task_adapter: adapter_config
