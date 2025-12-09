@@ -18,6 +18,7 @@ from claude_agent_sdk import ClaudeSDKClient
 from client import create_client
 from progress import print_session_header, print_progress_summary, is_task_initialized
 from prompts import get_initializer_prompt, get_coding_prompt, get_audit_prompt
+from linear_tracker import init_tracker, track_linear_call
 
 
 # Configuration
@@ -437,7 +438,35 @@ async def run_agent_session(
                         response_text += block.text
                         print(block.text, end="", flush=True)
                     elif block_type == "ToolUseBlock" and hasattr(block, "name"):
-                        print(f"\n[Tool: {block.name}]", flush=True)
+                        tool_name = block.name
+                        print(f"\n[Tool: {tool_name}]", flush=True)
+                        
+                        # Track Linear API calls when tool is invoked
+                        if "mcp__linear__" in tool_name:
+                            from linear_tracker import get_tracker
+                            tracker = get_tracker()
+                            if tracker:
+                                # Parse operation and endpoint from tool name
+                                # Format: mcp__linear__<operation>_<endpoint>
+                                # Examples: mcp__linear__list_issues, mcp__linear__create_issue
+                                parts = tool_name.replace("mcp__linear__", "").split("_")
+                                if len(parts) >= 2:
+                                    operation = parts[0]  # list, create, update, get
+                                    endpoint = "_".join(parts[1:])  # issues, projects, etc.
+                                else:
+                                    operation = parts[0] if parts else "unknown"
+                                    endpoint = "unknown"
+                                
+                                # Extract metadata from input if available
+                                metadata = {}
+                                if hasattr(block, "input"):
+                                    try:
+                                        metadata = dict(block.input) if hasattr(block.input, "__dict__") else {}
+                                    except:
+                                        pass
+                                
+                                tracker.track_call(operation, endpoint, metadata)
+                        
                         if hasattr(block, "input"):
                             input_str = str(block.input)
                             if len(input_str) > 200:
@@ -525,6 +554,21 @@ async def run_autonomous_agent(
     # We use .task_project.json as the marker for initialization
     is_first_run = not is_task_initialized(project_dir)
 
+    # Initialize Linear API call tracker
+    tracker = init_tracker(project_dir)
+    
+    # Clean up old tracking data (keep last 7 days)
+    tracker.cleanup_old_calls(days=7)
+    
+    # Check current rate limit status
+    calls_last_hour = tracker.get_call_count_in_window()
+    if calls_last_hour > 0:
+        print(f"📊 Linear API: {calls_last_hour}/1500 calls in last hour")
+        if not tracker.is_safe_to_call():
+            print(f"⚠️  WARNING: Approaching rate limit!")
+            print(f"   Consider waiting {tracker._time_until_safe()}")
+        print()
+
     if is_first_run:
         print("Fresh start - will use initializer agent")
         print()
@@ -588,6 +632,12 @@ async def run_autonomous_agent(
         # Run session with async context manager
         async with client:
             status, response = await run_agent_session(client, prompt, project_dir)
+        
+        # Print Linear API usage summary after session
+        from linear_tracker import get_tracker
+        tracker = get_tracker()
+        if tracker and tracker.session_calls:
+            tracker.print_session_summary()
 
         # Handle status
         if status == "continue":
@@ -625,6 +675,12 @@ async def run_autonomous_agent(
     print("=" * 70)
     print(f"\nProject directory: {project_dir}")
     print_progress_summary(project_dir)
+    
+    # Print final Linear API usage breakdown
+    from linear_tracker import get_tracker
+    tracker = get_tracker()
+    if tracker:
+        tracker.print_breakdown()
 
     # Print instructions for running the generated application
     print("\n" + "-" * 70)
