@@ -1,0 +1,10 @@
+{
+  "cache_version": "1.0",
+  "entries": {},
+  "stats": {
+    "total_hits": 3,
+    "total_misses": 0,
+    "total_sets": 2,
+    "total_invalidations": 2
+  }
+}
