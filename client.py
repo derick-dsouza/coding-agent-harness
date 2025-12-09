@@ -15,6 +15,24 @@ from claude_agent_sdk.types import HookMatcher
 from security import bash_security_hook
 
 
+# Load defaults configuration
+def load_defaults():
+    """Load autocode-defaults.json from script directory."""
+    script_dir = Path(__file__).parent
+    defaults_path = script_dir / "autocode-defaults.json"
+    
+    if defaults_path.exists():
+        with open(defaults_path) as f:
+            return json.load(f)
+    return {}
+
+
+DEFAULTS = load_defaults()
+
+# Get API key environment variable name from defaults
+API_KEY_ENV_VAR = DEFAULTS.get("agent_sdks", {}).get("claude-agent-sdk", {}).get("api_key_env", "CLAUDE_CODE_OAUTH_TOKEN")
+
+
 # Puppeteer MCP tools for browser automation
 PUPPETEER_TOOLS = [
     "mcp__puppeteer__puppeteer_navigate",
@@ -82,10 +100,10 @@ def create_client(project_dir: Path, model: str) -> ClaudeSDKClient:
     3. Security hooks - Bash commands validated against an allowlist
        (see security.py for ALLOWED_COMMANDS)
     """
-    api_key = os.environ.get("CLAUDE_CODE_OAUTH_TOKEN")
+    api_key = os.environ.get(API_KEY_ENV_VAR)
     if not api_key:
         raise ValueError(
-            "CLAUDE_CODE_OAUTH_TOKEN environment variable not set.\n"
+            f"{API_KEY_ENV_VAR} environment variable not set.\n"
             "Run 'claude setup-token after installing the Claude Code CLI."
         )
 

@@ -21,6 +21,20 @@ from pathlib import Path
 from agent import run_autonomous_agent
 
 
+# Load defaults configuration
+def load_defaults():
+    """Load autocode-defaults.json from script directory."""
+    script_dir = Path(__file__).parent
+    defaults_path = script_dir / "autocode-defaults.json"
+    
+    if defaults_path.exists():
+        with open(defaults_path) as f:
+            return json.load(f)
+    return {}
+
+
+DEFAULTS = load_defaults()
+
 # Configuration
 # Model defaults - three separate models for different session types
 # This balances quality (Opus for planning/audit) with cost/speed (Sonnet for implementation)
@@ -29,6 +43,9 @@ DEFAULT_CODING_MODEL = "claude-sonnet-4-5-20250929"
 DEFAULT_AUDIT_MODEL = "claude-opus-4-5-20251101"  # Default: same as initializer
 CONFIG_FILE = ".autocode-config.json"
 DEFAULT_SPEC_FILE = "app_spec.txt"
+
+# Get API key environment variable name from defaults
+API_KEY_ENV_VAR = DEFAULTS.get("agent_sdks", {}).get("claude-agent-sdk", {}).get("api_key_env", "CLAUDE_CODE_OAUTH_TOKEN")
 
 
 def parse_args() -> argparse.Namespace:
@@ -100,11 +117,11 @@ Config File (.autocode-config.json):
   Priority: CLI arguments > config file > defaults
 
 Environment Variables:
-  CLAUDE_CODE_OAUTH_TOKEN    Claude Code OAuth token (required)
+  {api_key_var}    Claude Code OAuth token (required)
   LINEAR_API_KEY             Linear API key (required for Linear adapter)
   TASK_ADAPTER_TYPE          Task management adapter to use (default: linear)
                              Options: linear, github, beads
-        """,
+        """.format(api_key_var=API_KEY_ENV_VAR),
     )
 
     parser.add_argument(
@@ -333,11 +350,11 @@ def main() -> None:
     args = parse_args()
 
     # Check for Claude Code OAuth token
-    if not os.environ.get("CLAUDE_CODE_OAUTH_TOKEN"):
-        print("Error: CLAUDE_CODE_OAUTH_TOKEN environment variable not set")
+    if not os.environ.get(API_KEY_ENV_VAR):
+        print(f"Error: {API_KEY_ENV_VAR} environment variable not set")
         print("\nRun 'claude setup-token' after installing the Claude Code CLI.")
         print("\nThen set it:")
-        print("  export CLAUDE_CODE_OAUTH_TOKEN='your-token-here'")
+        print(f"  export {API_KEY_ENV_VAR}='your-token-here'")
         return
 
     # Resolve project directory
