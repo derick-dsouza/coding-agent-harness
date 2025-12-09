@@ -42,6 +42,46 @@ The harness automatically caches Linear API responses to reduce API calls:
 
 **💡 Quick Reference:** See `QUERY_OPTIMIZATION_GUIDE.md` for smart querying patterns.
 
+---
+
+## 🚀 BATCH OPERATIONS (Use When Updating Multiple Issues)
+
+**When to Batch:**
+- Marking 2+ features as DONE
+- Adding labels to 3+ issues
+- Any time you're doing the same update to multiple issues
+
+**How to Batch:**
+
+```python
+# Import the batch helper
+from linear_batch_helper import batch_update_issues, batch_add_labels
+
+# Example 1: Mark multiple features DONE
+completed = [
+    {"issue_id": "ISS-001", "status": "DONE", "labels": ["awaiting-audit"]},
+    {"issue_id": "ISS-002", "status": "DONE", "labels": ["awaiting-audit"]},
+]
+result = batch_update_issues(completed)  # 1 API call instead of 2!
+
+# Example 2: Add label to multiple issues
+issue_ids = ["ISS-003", "ISS-004", "ISS-005"]
+label_ids = ["awaiting-audit-label-id"]
+result = batch_add_labels(issue_ids, label_ids)  # 1 API call instead of 3!
+```
+
+**Benefits:**
+- 10 issues individually = 10 API calls
+- 10 issues batched = 1 API call (90% reduction!)
+- Faster execution
+- Fewer rate limit concerns
+
+**Rule of Thumb:**
+- 1 issue: Use individual update
+- 2+ issues: Use batch update
+
+---
+
 ### STEP 1: GET YOUR BEARINGS (MANDATORY)
 
 Start by orienting yourself:
@@ -148,9 +188,36 @@ contains the `project_id` and `team_id` you should use for all queries.
    Query for Done issues that do NOT have either "awaiting-audit" OR "audited" labels.
    These are legacy issues completed before the audit system.
    
-   For each legacy issue found:
-   - Add the label "awaiting-audit" using batch updates (efficient)
-   - Count them
+   **Use batch updates for efficiency:**
+   ```python
+   # Import batch helper
+   from linear_batch_helper import batch_add_labels
+   
+   # Find legacy issues (from your list_issues query)
+   legacy_issue_ids = [
+       issue.id for issue in all_issues
+       if issue.status == "DONE" 
+       and "awaiting-audit" not in issue.labels
+       and "audited" not in issue.labels
+   ]
+   
+   # Batch add label (1 API call for all issues!)
+   if legacy_issue_ids:
+       awaiting_audit_label_id = "your-label-id"
+       result = batch_add_labels(legacy_issue_ids, [awaiting_audit_label_id])
+       print(f"✅ Labeled {len(legacy_issue_ids)} legacy issues in 1 API call")
+   ```
+   
+   **Old way (inefficient):**
+   ```
+   For each legacy issue:
+       update_issue(id, add label)  # N issues = N API calls ❌
+   ```
+   
+   **New way (efficient):**
+   ```
+   batch_add_labels(all_issue_ids, [label])  # N issues = 1 API call ✅
+   ```
    
    Update `.task_project.json`:
    ```bash
@@ -271,8 +338,40 @@ After thorough verification:
    ```
 
 2. **Update status and add audit label:**
-   - Set status to DONE
-   - Add label `"awaiting-audit"`
+   
+   **If completing MULTIPLE features in this session:**
+   Use batch updates for efficiency!
+   
+   ```python
+   # Collect all completed features
+   from linear_batch_helper import batch_update_issues
+   
+   completed_features = [
+       {
+           "issue_id": "ISS-001",
+           "status": "DONE",
+           "labels": ["awaiting-audit"]
+       },
+       {
+           "issue_id": "ISS-002", 
+           "status": "DONE",
+           "labels": ["awaiting-audit"]
+       },
+       # ... more features
+   ]
+   
+   # Update all at once (1 API call!)
+   result = batch_update_issues(completed_features)
+   print(f"✅ Marked {result['updated_count']} features DONE in 1 API call")
+   ```
+   
+   **If completing ONE feature:**
+   Use individual update (no need to batch):
+   ```
+   update_issue(id: "ISS-001", status: "DONE", labels: ["awaiting-audit"])
+   ```
+   
+   **Batch Threshold:** Use batch for 2+ features in same session.
 
 **IMPORTANT: The "awaiting-audit" label**
 

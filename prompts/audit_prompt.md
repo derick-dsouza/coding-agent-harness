@@ -58,6 +58,56 @@ against the original specification.
 
 ---
 
+## 🚀 BATCH OPERATIONS (CRITICAL for Audit Sessions!)
+
+**Audit sessions are THE perfect use case for batching!**
+
+You'll typically audit 10-20 features in one session. Without batching:
+- 20 features = 20 individual update calls = 20 API calls
+
+With batching:
+- 20 features = 1 batch update call = 1 API call
+- **Savings: 95% fewer API calls!**
+
+**How to Use:**
+
+```python
+# Import batch helpers
+from linear_batch_helper import batch_update_issues, batch_add_labels
+
+# During audit: Collect results (don't update yet)
+passing_features = []
+failing_features = []
+
+# As you audit each feature:
+if feature_passes:
+    passing_features.append({
+        "issue_id": issue.id,
+        "labels": ["audited"]  # Will add this label
+    })
+else:
+    failing_features.append({
+        "issue_id": issue.id,
+        "labels": ["has-bugs"]
+    })
+
+# After auditing ALL features, batch update ONCE:
+if passing_features:
+    result = batch_update_issues(passing_features)
+    print(f"✅ Approved {result['updated_count']} features in 1 API call!")
+
+if failing_features:
+    result = batch_update_issues(failing_features)
+    print(f"🐛 Flagged {result['updated_count']} features in 1 API call!")
+```
+
+**IMPORTANT Pattern:**
+1. Audit all features (collect results in memory)
+2. Batch update at END (not during audit)
+3. Massive API call savings!
+
+---
+
 ## STEP 2: FIND FEATURES AWAITING AUDIT
 
 **EFFICIENT QUERYING: One Query, Complete Picture**
@@ -155,11 +205,27 @@ Get the issue details to review test steps and acceptance criteria.
 If you found any Done issues without "awaiting-audit" label in STEP 2,
 add the label now (should already be done in STEP 2, but double-check):
 
+**IMPORTANT: Use Batch Updates for Efficiency!**
+
+Instead of updating each issue individually, batch them:
+
+```python
+# Read the batch helper
+from linear_batch_helper import batch_add_labels
+
+# Get label IDs from your context or query once
+awaiting_audit_label_id = "label-id-here"
+
+# Batch add label to all issues at once
+issue_ids = ["ISS-001", "ISS-002", ...]  # All issues needing label
+result = batch_add_labels(issue_ids, [awaiting_audit_label_id])
+
+print(f"Updated {result['updated_count']} issues in 1 API call!")
 ```
-Update issues (batch):
-- Add label: "awaiting-audit"
-- Add comment: "Starting audit review (legacy feature)"
-```
+
+**Why batch?**
+- Individual updates: 20 issues = 20 API calls
+- Batch update: 20 issues = 1 API call (95% reduction!)
 
 Read carefully:
 - Feature description
@@ -415,12 +481,48 @@ Opus time on trivial fixes.
 
 **For each feature that passes all checks:**
 
-1. **Update Issue:**
-   ```
-   Update the issue:
-   - Remove label "awaiting-audit"
-   - Add label "audited"
-   ```
+**IMPORTANT: Batch Approve for Efficiency!**
+
+Instead of updating issues one at a time, collect all passing issues and batch update:
+
+```python
+# Import the batch helper
+from linear_batch_helper import batch_update_issues
+
+# Collect all passing issues during your audit
+passing_issues = []
+
+# As you audit each feature:
+# if feature_passes:
+#     passing_issues.append({
+#         "issue_id": "ISS-001",
+#         "labels": ["audited"]  # Remove awaiting-audit, add audited
+#     })
+
+# After auditing ALL features, batch update once:
+if passing_issues:
+    from linear_batch_helper import batch_update_issues
+    result = batch_update_issues(passing_issues)
+    print(f"✅ Approved {result['updated_count']} features in 1 API call!")
+```
+
+**Individual approach (OLD - don't do this):**
+```
+For each passing feature:
+    update_issue(id, labels: ["audited"])  # 20 issues = 20 API calls
+```
+
+**Batch approach (NEW - do this):**
+```python
+# Collect during audit, update once at end
+batch_update_issues(all_passing_issues)  # 20 issues = 1 API call!
+```
+
+**Savings:** 
+- 20 passing features
+- Old way: 20 API calls
+- New way: 1 API call
+- **Reduction: 95%!**
 
 2. **Add approval comment:**
    ```
