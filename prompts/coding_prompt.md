@@ -24,6 +24,22 @@ Your task management system has API rate limits (e.g., Linear: 1,500 requests/ho
 - Don't repeatedly query the same issues
 - Batch your status updates (update once when done, not multiple times)
 
+### API CACHING
+
+The harness automatically caches Linear API responses to reduce API calls:
+
+**How it works:**
+- First query caches the result (5 minute TTL for issue lists, 3 min for individual issues)
+- Subsequent queries within TTL use cached data (no API call)
+- Cache automatically invalidated when you create/update issues
+- Cache statistics shown at end of session
+
+**What this means for you:**
+- You can query issue lists without worry - first call populates cache
+- Refreshing your view of issues is free (if within cache TTL)
+- Your updates automatically invalidate cache to prevent stale data
+- No action needed - caching is transparent
+
 ### STEP 1: GET YOUR BEARINGS (MANDATORY)
 
 Start by orienting yourself:

@@ -20,6 +20,18 @@ and either approve them or identify issues that need fixing.
 Only fix CRITICAL issues yourself. For all other issues, create detailed
 [FIX] issues for the coding agent to handle.
 
+### API CACHING
+
+The harness caches Linear API responses to improve performance:
+
+**During audit:**
+- Issue queries are cached (5 min TTL for lists, 3 min for individual issues)
+- You can re-query issues freely - subsequent calls use cache
+- Updates you make automatically invalidate cache
+- Cache stats shown at end of session
+
+**Note:** This means you can check issue status repeatedly without rate limit concerns.
+
 ---
 
 ## STEP 1: ORIENT YOURSELF
