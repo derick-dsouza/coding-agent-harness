@@ -279,6 +279,33 @@ All subsequent coding agents will work from this Linear project.
 
 Edit `prompts/app_spec.txt` to specify a different application to build.
 
+### Adding Features to Existing Project
+
+If you've already completed the initial 50 issues and want to add new features:
+
+**Option 1: Manually create issues in your task management system**
+- Go to Linear/GitHub/BEADS and create new issues
+- Mark them as TODO with appropriate priority
+- The coding agent will pick them up automatically
+
+**Option 2: Use the spec change detector (recommended)**
+```bash
+# Edit app_spec.txt with your changes
+vim prompts/app_spec.txt
+
+# Run the spec change detector
+python detect_spec_changes.py --project-dir ./your_project
+
+# The detector will:
+# 1. Compare app_spec.txt against existing issues
+# 2. Create new issues for any gaps found
+# 3. Label them as "spec-change"
+# 4. Update the project state
+
+# Then run the coding agent normally
+python autonomous_agent_demo.py --project-dir ./your_project
+```
+
 ### Adjusting Issue Count
 
 Edit `prompts/initializer_prompt.md` and change "50 issues" to your desired count.

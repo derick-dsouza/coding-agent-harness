@@ -1,0 +1,51 @@
+╔══════════════════════════════════════════════════════════════╗
+║                  CODING AGENT QUICK REFERENCE                ║
+╠══════════════════════════════════════════════════════════════╣
+║                                                              ║
+║  🎯 MAIN COMMANDS                                            ║
+║                                                              ║
+║     autocode              Detect + implement changes         ║
+║     autospec [path]       Copy spec to directory            ║
+║                                                              ║
+╠══════════════════════════════════════════════════════════════╣
+║                                                              ║
+║  📝 TYPICAL WORKFLOW                                         ║
+║                                                              ║
+║     # Edit the spec                                          ║
+║     vim ~/Projects/.../prompts/app_spec.txt                  ║
+║                                                              ║
+║     # Run from anywhere                                      ║
+║     autocode                                                 ║
+║                                                              ║
+╠══════════════════════════════════════════════════════════════╣
+║                                                              ║
+║  📋 NEW PROJECT WORKFLOW                                     ║
+║                                                              ║
+║     mkdir my-new-project && cd my-new-project                ║
+║     autospec              # Copy spec to current dir         ║
+║     vim app_spec.txt      # Edit as needed                   ║
+║     autocode              # Start building                   ║
+║                                                              ║
+╠══════════════════════════════════════════════════════════════╣
+║                                                              ║
+║  🔧 ALL ALIASES                                              ║
+║                                                              ║
+║     autocode              Main command (detect + run)        ║
+║     autospec [path]       Copy spec (defaults to .)         ║
+║     code-agent-detect     Preview changes only               ║
+║     code-agent-run        Run agent only                     ║
+║     code-agent-cd         Navigate to harness                ║
+║                                                              ║
+╠══════════════════════════════════════════════════════════════╣
+║                                                              ║
+║  📊 MONITOR PROGRESS                                         ║
+║                                                              ║
+║     https://linear.app/derickdsouza/project/...              ║
+║                                                              ║
+║  Look for:                                                   ║
+║    • Issues labeled "spec-change"                            ║
+║    • Status: TODO → In Progress → Done                       ║
+║                                                              ║
+╚══════════════════════════════════════════════════════════════╝
+
+To activate aliases: source ~/.zshrc

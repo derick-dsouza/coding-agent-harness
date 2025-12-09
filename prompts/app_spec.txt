@@ -11,7 +11,9 @@
 
   <technology_stack>
     <api_key>
-        You can use an API key located at /tmp/api-key for testing. You will not be allowed to read this file, but you can reference it in code.
+        The application must use the Claude Agent SDK with Claude Code OAuth authentication.
+        The CLAUDE_CODE_OAUTH_TOKEN must be read from environment variables.
+        Do NOT use the Anthropic API key or Anthropic SDK.
     </api_key>
     <frontend>
       <framework>React with Vite</framework>
@@ -25,22 +27,23 @@
     <backend>
       <runtime>Node.js with Express</runtime>
       <database>SQLite with better-sqlite3</database>
-      <api_integration>Claude API for chat completions</api_integration>
+      <api_integration>Claude Agent SDK for chat completions with CLAUDE_CODE_OAUTH_TOKEN from environment</api_integration>
       <streaming>Server-Sent Events for streaming responses</streaming>
     </backend>
     <communication>
       <api>RESTful endpoints</api>
       <streaming>SSE for real-time message streaming</streaming>
-      <claude_api>Integration with Claude API using Anthropic SDK</claude_api>
+      <claude_api>Integration with Claude Agent SDK using CLAUDE_CODE_OAUTH_TOKEN from process.env</claude_api>
     </communication>
   </technology_stack>
 
   <prerequisites>
     <environment_setup>
-      - Repository includes .env with VITE_ANTHROPIC_API_KEY configured
+      - Application reads CLAUDE_CODE_OAUTH_TOKEN from environment variables
       - Frontend dependencies pre-installed via pnpm
       - Backend code goes in /server directory
-      - Install backend dependencies as needed
+      - Install backend dependencies including Claude Agent SDK
+      - No Anthropic API key needed - use Claude Code OAuth token only
     </environment_setup>
   </prerequisites>
 
@@ -129,7 +132,7 @@
       - Keyboard shortcuts reference
       - Data export options
       - Privacy settings
-      - API key management
+      - Claude Code OAuth token management
     </settings_preferences>
 
     <advanced_features>
@@ -267,9 +270,10 @@
       </usage_tracking>
 
       <api_keys>
-        - id, user_id, key_name, api_key_hash
+        - id, user_id, key_name, token_hash
         - created_at, last_used_at
         - is_active
+        - Note: Store CLAUDE_CODE_OAUTH_TOKEN hash, not Anthropic API key
       </api_keys>
     </tables>
   </database_schema>
@@ -372,10 +376,11 @@
     </settings>
 
     <claude_api>
-      - POST /api/claude/chat (proxy to Claude API)
-      - POST /api/claude/chat/stream (streaming proxy)
+      - POST /api/claude/chat (proxy to Claude Agent SDK)
+      - POST /api/claude/chat/stream (streaming proxy using Claude Agent SDK)
       - GET /api/claude/models
       - POST /api/claude/images/upload
+      - Note: All endpoints use CLAUDE_CODE_OAUTH_TOKEN from environment, not Anthropic API key
     </claude_api>
   </api_endpoints_summary>
 
@@ -534,7 +539,8 @@
       <title>Setup Project Foundation and Database</title>
       <tasks>
         - Initialize Express server with SQLite database
-        - Set up Claude API client with streaming support
+        - Set up Claude Agent SDK client with CLAUDE_CODE_OAUTH_TOKEN from environment
+        - Configure streaming support using Claude Agent SDK
         - Create database schema with migrations
         - Implement authentication endpoints
         - Set up basic CORS and middleware
@@ -663,9 +669,9 @@
     <technical_quality>
       - Clean, maintainable code structure
       - Proper error handling throughout
-      - Secure API key management
+      - Secure CLAUDE_CODE_OAUTH_TOKEN management (environment variable only)
       - Optimized database queries
-      - Efficient streaming implementation
+      - Efficient streaming implementation using Claude Agent SDK
       - Comprehensive testing coverage
     </technical_quality>
 
