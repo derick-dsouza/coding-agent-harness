@@ -19,6 +19,12 @@ from client import create_client
 from progress import print_session_header, print_progress_summary, is_task_initialized
 from prompts import get_initializer_prompt, get_coding_prompt, get_audit_prompt
 from linear_tracker import init_tracker, track_linear_call
+from linear_cache import init_cache
+from linear_cache_helpers import (
+    invalidate_cache_for_operations,
+    print_combined_stats,
+    get_project_id_from_state
+)
 
 
 # Configuration
@@ -557,13 +563,22 @@ async def run_autonomous_agent(
     # Initialize Linear API call tracker
     tracker = init_tracker(project_dir)
     
-    # Clean up old tracking data (keep last 7 days)
+    # Initialize Linear API cache
+    cache = init_cache(project_dir)
+    
+    # Clean up old data
     tracker.cleanup_old_calls(days=7)
+    expired = cache.clear_expired()
+    if expired > 0:
+        print(f"🧹 Cleared {expired} expired cache entries")
     
     # Check current rate limit status
     calls_last_hour = tracker.get_call_count_in_window()
     if calls_last_hour > 0:
+        cache_stats = cache.get_stats()
         print(f"📊 Linear API: {calls_last_hour}/1500 calls in last hour")
+        if cache_stats['total_hits'] > 0:
+            print(f"📦 Cache: {cache_stats['total_hits']} hits, {cache_stats['hit_rate']*100:.1f}% hit rate")
         if not tracker.is_safe_to_call():
             print(f"⚠️  WARNING: Approaching rate limit!")
             print(f"   Consider waiting {tracker._time_until_safe()}")
@@ -633,11 +648,22 @@ async def run_autonomous_agent(
         async with client:
             status, response = await run_agent_session(client, prompt, project_dir)
         
-        # Print Linear API usage summary after session
+        # Invalidate cache based on operations performed
+        from linear_cache import get_cache
         from linear_tracker import get_tracker
+        cache = get_cache()
         tracker = get_tracker()
+        
+        if cache and tracker:
+            project_id = get_project_id_from_state(project_dir)
+            invalidate_cache_for_operations(cache, tracker, project_id)
+        
+        # Print Linear API usage summary after session
         if tracker and tracker.session_calls:
-            tracker.print_session_summary()
+            if cache:
+                print_combined_stats(cache, tracker)
+            else:
+                tracker.print_session_summary()
 
         # Handle status
         if status == "continue":
@@ -676,10 +702,16 @@ async def run_autonomous_agent(
     print(f"\nProject directory: {project_dir}")
     print_progress_summary(project_dir)
     
-    # Print final Linear API usage breakdown
+    # Print final Linear API usage breakdown with cache stats
     from linear_tracker import get_tracker
+    from linear_cache import get_cache
     tracker = get_tracker()
-    if tracker:
+    cache = get_cache()
+    
+    if tracker and cache:
+        print_combined_stats(cache, tracker)
+        cache.print_stats()
+    elif tracker:
         tracker.print_breakdown()
 
     # Print instructions for running the generated application
