@@ -14,19 +14,34 @@
       "name": "Linear",
       "description": "Linear project management (requires Linear API key)",
       "cli_command": null,
-      "requires_api_key": true
+      "requires_api_key": true,
+      "rate_limit": {
+        "requests_per_hour": 1500,
+        "window_minutes": 60,
+        "batch_size": 20
+      }
     },
     "github": {
       "name": "GitHub Issues",
       "description": "GitHub Issues for task management (requires gh CLI)",
       "cli_command": "gh",
-      "requires_api_key": false
+      "requires_api_key": false,
+      "rate_limit": {
+        "requests_per_hour": 5000,
+        "window_minutes": 60,
+        "batch_size": 30
+      }
     },
     "beads": {
       "name": "BEADS",
       "description": "BEADS local task management (requires bd CLI)",
       "cli_command": "bd",
-      "requires_api_key": false
+      "requires_api_key": false,
+      "rate_limit": {
+        "requests_per_hour": 0,
+        "window_minutes": 0,
+        "batch_size": 50
+      }
     }
   },
   "defaults": {

@@ -101,6 +101,10 @@ class TaskManagementAdapter(ABC):
     rather than system-specific terms (Linear's "project", Jira's "epic", etc.)
     """
     
+    # Rate limit configuration (override in subclasses)
+    RATE_LIMIT_DURATION_MINUTES = 0  # 0 = no rate limit
+    RATE_LIMIT_MAX_REQUESTS = 0      # 0 = no rate limit
+    
     # ==================== Team Operations ====================
     
     @abstractmethod
@@ -263,6 +267,43 @@ class TaskManagementAdapter(ABC):
             Updated Issue object
         """
         pass
+    
+    def update_issues_batch(
+        self,
+        updates: List[Dict[str, Any]],
+    ) -> List[Issue]:
+        """
+        Update multiple issues in a single batch request (if supported).
+        
+        This method provides a more efficient way to update multiple issues
+        by combining them into a single API request, reducing the number of
+        API calls and avoiding rate limits.
+        
+        Args:
+            updates: List of update dictionaries, each containing:
+                - issue_id (str): Required - Issue identifier
+                - title (str): Optional - New title
+                - description (str): Optional - New description
+                - status (IssueStatus): Optional - New status
+                - priority (IssuePriority): Optional - New priority
+                - labels (List[str]): Optional - Label IDs (replaces all)
+                - add_labels (List[str]): Optional - Label IDs to add
+                - remove_labels (List[str]): Optional - Label IDs to remove
+            
+        Returns:
+            List of updated Issue objects
+            
+        Note:
+            Default implementation falls back to individual updates.
+            Adapters that support batch operations (e.g., GraphQL-based)
+            should override this for better performance.
+        """
+        results = []
+        for update in updates:
+            issue_id = update.pop("issue_id")
+            updated_issue = self.update_issue(issue_id, **update)
+            results.append(updated_issue)
+        return results
     
     @abstractmethod
     def list_issues(

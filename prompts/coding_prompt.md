@@ -64,7 +64,23 @@ contains the `project_id` and `team_id` you should use for all queries.
    - Issues with status TODO = remaining
    - Issues with status IN_PROGRESS = currently being worked on
 
-3. **Check for in-progress work:**
+3. **Check and label legacy issues (IMPORTANT):**
+   Query for Done issues that do NOT have either "awaiting-audit" OR "audited" labels.
+   These are legacy issues completed before the audit system.
+   
+   For each legacy issue found:
+   - Add the label "awaiting-audit" using batch updates (efficient)
+   - Count them
+   
+   Update `.task_project.json`:
+   ```bash
+   # Set the legacy_done_without_audit count
+   jq '.legacy_done_without_audit = [COUNT]' .task_project.json > tmp.$$.json && mv tmp.$$.json .task_project.json
+   ```
+   
+   This ensures legacy issues will be audited properly.
+
+4. **Check for in-progress work:**
    If any issue is IN_PROGRESS, that should be your first priority.
    A previous session may have been interrupted.
 
@@ -245,17 +261,14 @@ jq '.features_awaiting_audit = (.features_awaiting_audit // 0) + 1' .task_projec
 ```
 
 **If you discover LEGACY features (Done without audit labels):**
-When querying issues, you might find tasks in "Done" status that lack both 
-"awaiting-audit" and "audited" labels. These are legacy tasks completed before 
-the audit system was implemented.
 
-Track these separately:
+**NOTE:** You should have already labeled these in STEP 2. If you find additional ones
+during your session, add the "awaiting-audit" label and update the count:
+
 ```bash
-# Count how many legacy done tasks you found (without audit labels)
-LEGACY_COUNT=[number]
-
-# Update state file:
-jq '.legacy_done_without_audit = [number]' .task_project.json > tmp.$$.json && mv tmp.$$.json .task_project.json
+# Add label to the issue (use batch updates for multiple issues)
+# Then update the count in state file:
+jq '.legacy_done_without_audit = [NEW_COUNT]' .task_project.json > tmp.$$.json && mv tmp.$$.json .task_project.json
 ```
 
 This helps trigger audit sessions at the right time (when total awaiting >= 10).

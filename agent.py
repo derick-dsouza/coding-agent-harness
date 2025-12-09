@@ -9,6 +9,7 @@ Supports multiple task management backends (Linear, Jira, GitHub) via adapter pa
 import asyncio
 import os
 import re
+import time
 from pathlib import Path
 from typing import Optional
 
@@ -164,11 +165,21 @@ class LinearRateLimitHandler:
     
     Linear has a fixed 1-hour rolling window, so waits are always manageable.
     This handler always waits rather than exiting.
+    
+    Tracks elapsed time from first API call to optimize wait duration.
     """
 
     def __init__(self):
         self.consecutive_rate_limits = 0
+        self.first_api_call_time = None  # Track when Linear API usage started in this window
+        self.rate_limit_window_seconds = 3600  # Linear's 1-hour window
+        self.was_rate_limited = False  # Track if we were rate limited
 
+    def track_api_call(self) -> None:
+        """Track successful Linear API call to measure elapsed time in rate limit window."""
+        if self.first_api_call_time is None:
+            self.first_api_call_time = time.time()
+    
     def is_linear_rate_limit(self, content: str, tool_name: str = "") -> bool:
         """Check if content indicates a Linear API rate limit."""
         content_lower = content.lower()
@@ -184,35 +195,60 @@ class LinearRateLimitHandler:
         )
 
     async def handle_rate_limit(self, content: str) -> tuple[str, int]:
-        """Handle Linear API rate limit by waiting (max 1 hour)."""
+        """Handle Linear API rate limit by waiting only the remaining time in the window."""
         self.consecutive_rate_limits += 1
+        self.was_rate_limited = True  # Mark that we hit rate limit
         
-        # Linear resets hourly, so max wait is 60 minutes
-        # Use a conservative estimate
-        wait_time = min(3600, LINEAR_RATE_LIMIT_MAX_WAIT_SECONDS)
+        # Calculate actual wait time based on elapsed time since first API call
+        if self.first_api_call_time:
+            elapsed = time.time() - self.first_api_call_time
+            # Only wait the remaining time in the 1-hour window
+            wait_time = max(30, int(self.rate_limit_window_seconds - elapsed))  # Min 30s buffer
+        else:
+            # Fallback: conservative estimate (full hour)
+            wait_time = self.rate_limit_window_seconds
+        
+        wait_time = min(wait_time, LINEAR_RATE_LIMIT_MAX_WAIT_SECONDS)
         wait_minutes = wait_time / 60
+        elapsed_minutes = (time.time() - self.first_api_call_time) / 60 if self.first_api_call_time else 0
 
         print(f"\n{'='*70}")
         print(f"  LINEAR API RATE LIMIT DETECTED (#{self.consecutive_rate_limits})")
         print(f"{'='*70}\n")
         print(f"  Linear limit: 1500 requests/hour")
-        print(f"  Wait time: {wait_minutes:.0f} minutes (max)")
+        if self.first_api_call_time:
+            print(f"  Time elapsed in current window: {elapsed_minutes:.1f} minutes")
+        print(f"  Wait time: {wait_minutes:.1f} minutes ({wait_time}s)")
         print(f"  Decision: Auto-waiting (Linear resets within 1 hour)\n")
 
-        # Show countdown
-        for remaining in range(wait_time, 0, -60):
-            mins = remaining / 60
-            print(f"  ... {mins:.0f} minutes remaining", flush=True)
-            await asyncio.sleep(min(60, remaining))
+        # Show countdown with error handling
+        try:
+            for remaining in range(wait_time, 0, -60):
+                mins = remaining / 60
+                print(f"  ... {mins:.0f} minutes remaining", flush=True)
+                await asyncio.sleep(min(60, remaining))
+        except asyncio.CancelledError:
+            print("\n  Rate limit wait interrupted")
+            raise
+        except Exception as e:
+            print(f"\n  Warning: Error during wait countdown: {e}")
+            # Still complete the wait
+            await asyncio.sleep(max(0, wait_time - (time.time() - self.first_api_call_time) if self.first_api_call_time else wait_time))
         
         print("  Linear rate limit wait complete. Resuming...\n")
         return ("wait", wait_time)
 
     def reset(self) -> None:
-        """Reset consecutive rate limit counter."""
+        """Reset consecutive rate limit counter and timer after successful API call post rate-limit."""
         if self.consecutive_rate_limits > 0:
             print("  [Linear API rate limit cleared]")
         self.consecutive_rate_limits = 0
+        
+        # Only reset timer if we were rate limited (indicating new window has started)
+        if self.was_rate_limited:
+            self.first_api_call_time = None  # Reset timer for next rate limit window
+            self.was_rate_limited = False
+            print("  [Linear API rate limit window reset]")
 
 
 class UnifiedRateLimitHandler:
@@ -260,6 +296,10 @@ class UnifiedRateLimitHandler:
         else:
             print("  [Unknown rate limit source, using Claude handler]")
             return await self.claude_handler.handle_rate_limit(content)
+    
+    def track_linear_api_call(self) -> None:
+        """Track successful Linear API call for rate limit timing."""
+        self.rate_limit_handler.track_api_call()
 
     def reset(self) -> None:
         """Reset both handlers."""
@@ -420,9 +460,9 @@ async def run_agent_session(
                             print(f"   [BLOCKED] {result_content}", flush=True)
                         elif is_error:
                             # Check for rate limit errors
-                            if rate_limit_handler.is_rate_limit_error(result_str):
+                            if rate_limit_handler.is_rate_limit_error(result_str, tool_name=getattr(block, "name", "")):
                                 print(f"   [Rate Limited] {result_str[:200]}", flush=True)
-                                action, wait_time = await rate_limit_handler.handle_rate_limit(result_str)
+                                action, wait_time = await rate_limit_handler.handle_rate_limit(result_str, tool_name=getattr(block, "name", ""))
                                 
                                 if action == "exit":
                                     print("\nExiting due to long rate limit wait...")
@@ -432,7 +472,10 @@ async def run_agent_session(
                                 error_str = result_str[:500]
                                 print(f"   [Error] {error_str}", flush=True)
                         else:
-                            # Tool succeeded - reset rate limit counter
+                            # Tool succeeded - reset rate limit counter and track Linear API calls
+                            tool_name = getattr(block, "name", "")
+                            if "mcp__linear__" in tool_name:
+                                rate_limit_handler.rate_limit_handler.track_api_call()
                             rate_limit_handler.reset()
                             print("   [Done]", flush=True)
 

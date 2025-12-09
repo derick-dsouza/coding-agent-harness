@@ -62,6 +62,8 @@ Query your task management system to find all features ready for audit.
    ```
 
 2. **Legacy workflow** - Done features without audit labels (backwards compatibility):
+   **NOTE:** The coding agent should have already labeled these with "awaiting-audit"
+   in STEP 2 of their workflow. However, query for any remaining ones:
    ```
    List issues with:
    - project_id: [from .task_project.json]
@@ -88,11 +90,9 @@ Query your task management system to find all features ready for audit.
 - Still audit all of them
 - Note in META issue that audit interval should be checked
 
-**For legacy features (without labels):**
-- These were completed before the audit workflow was implemented
-- Treat them the same as labeled features
-- Add the "awaiting-audit" label when you start auditing them
-- This ensures they're tracked properly going forward
+**For legacy features (without labels - if any remain):**
+- Add the "awaiting-audit" label immediately (use batch update)
+- Then audit them normally
 
 ---
 
@@ -119,12 +119,12 @@ For each feature awaiting audit (both labeled and legacy):
 
 Get the issue details to review test steps and acceptance criteria.
 
-**For legacy features (without audit labels):**
-Before starting the audit, add the "awaiting-audit" label to the feature.
-This ensures proper tracking and consistency with the modern workflow.
+**For any remaining unlabeled legacy features:**
+If you found any Done issues without "awaiting-audit" label in STEP 2,
+add the label now (should already be done in STEP 2, but double-check):
 
 ```
-Update issue [ISSUE-ID]:
+Update issues (batch):
 - Add label: "awaiting-audit"
 - Add comment: "Starting audit review (legacy feature)"
 ```

@@ -85,34 +85,34 @@ Examples:
   python autocode.py --max-iterations 5
 
 Config File (.autocode-config.json):
-  {
+  {{{{
     "spec_file": "my_spec.txt",
     "initializer_model": "claude-opus-4-5-20251101",
     "coding_model": "claude-sonnet-4-5-20250929",
     "audit_model": "claude-opus-4-5-20251101",
     "max_iterations": 10,
     "task_manager": "linear",
-    "task_manager_config": {
-      "linear": {
+    "task_manager_config": {{{{
+      "linear": {{{{
         "team_name": "YOUR_TEAM_NAME",
         "project_name": "YOUR_PROJECT_NAME"
-      },
-      "github": {
+      }}}},
+      "github": {{{{
         "owner": "YOUR_GITHUB_ORG",
         "repo": "YOUR_REPO_NAME"
-      },
-      "beads": {
+      }}}},
+      "beads": {{{{
         "workspace": "YOUR_WORKSPACE_ID"
-      }
-    }
-  }
+      }}}}
+    }}}}
+  }}}}
 
   Or use single model for all sessions:
-  {
+  {{{{
     "spec_file": "my_spec.txt",
     "model": "claude-opus-4-5-20251101",
     "task_manager": "linear"
-  }
+  }}}}
 
   Priority: CLI arguments > config file > defaults
 
@@ -377,9 +377,13 @@ def main() -> None:
     # Load config file
     config = load_config(project_dir)
     
-    # First-time setup: Run interactive wizard if no config exists and no CLI args provided
+    # First-time setup: Check if this is a fresh project
     config_path = project_dir / CONFIG_FILE
-    if not config_path.exists() and not any([
+    task_project_path = project_dir / ".task_project.json"
+    is_first_run = not config_path.exists() and not task_project_path.exists()
+    
+    # Run interactive wizard if first run and no CLI args provided
+    if is_first_run and not any([
         args.spec_file,
         args.model,
         args.initializer_model,
@@ -401,6 +405,40 @@ def main() -> None:
         # Reload config after wizard
         config = load_config(project_dir)
         print("\n" + "="*70)
+    
+    # If first run and spec file not specified, prompt for it
+    elif is_first_run and args.spec_file is None and "spec_file" not in config:
+        print("\n" + "="*70)
+        print("📄 SPEC FILE REQUIRED")
+        print("="*70)
+        print(f"\nNo spec file specified for first-time setup.")
+        print("\nSupported formats: .txt, .md, .yaml, .yml")
+        print(f"Default: {DEFAULT_SPEC_FILE}")
+        
+        while True:
+            spec_input = input(f"\nEnter spec file name (or press Enter for '{DEFAULT_SPEC_FILE}'): ").strip()
+            
+            if not spec_input:
+                spec_input = DEFAULT_SPEC_FILE
+            
+            spec_path = project_dir / spec_input
+            if spec_path.exists() and spec_path.is_file():
+                # Save to config for future runs
+                config["spec_file"] = spec_input
+                with open(config_path, 'w') as f:
+                    json.dump(config, f, indent=2)
+                print(f"\n✅ Using spec file: {spec_input}")
+                print(f"   Saved to {CONFIG_FILE}")
+                break
+            else:
+                print(f"\n❌ File not found: {spec_path}")
+                print("   Please create the file or enter a different name.")
+                retry = input("   Try again? (y/n): ").strip().lower()
+                if retry != 'y':
+                    print("\nExiting. Please create a spec file and run again.")
+                    return
+        
+        print("="*70 + "\n")
     
     # Resolve all settings
     resolved = resolve_config(args, project_dir, config)

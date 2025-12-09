@@ -37,6 +37,10 @@ class GitHubAdapter(TaskManagementAdapter):
     - Custom labels for priority → IssuePriority
     """
     
+    # Rate limit configuration for GitHub API
+    RATE_LIMIT_DURATION_MINUTES = 60  # 1 hour
+    RATE_LIMIT_MAX_REQUESTS = 5000    # 5000 requests per hour for authenticated users
+    
     # Status mapping: Generic → GitHub
     STATUS_TO_GITHUB = {
         IssueStatus.TODO: "open",

@@ -43,6 +43,10 @@ class BeadsAdapter(TaskManagementAdapter):
     BEADS Types: bug, feature, task, epic, chore
     """
     
+    # Rate limit configuration for BEADS (no rate limit)
+    RATE_LIMIT_DURATION_MINUTES = 0
+    RATE_LIMIT_MAX_REQUESTS = 0
+    
     # Status mapping: Generic → BEADS
     STATUS_TO_BEADS = {
         IssueStatus.TODO: "open",
