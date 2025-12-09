@@ -1,10 +1,12 @@
 {
-  "agent_sdk": "claude-agent-sdk",
-  "models": {
-    "claude": {
-      "opus": "claude-opus-4-5-20251101",
-      "sonnet": "claude-sonnet-4-5-20250929",
-      "haiku": "claude-haiku-4-5-20250929"
+  "agent_sdks": {
+    "claude-agent-sdk": {
+      "api_key_env": "CLAUDE_CODE_OAUTH_TOKEN",
+      "models": {
+        "opus": "claude-opus-4-5-20251101",
+        "sonnet": "claude-sonnet-4-5-20250929",
+        "haiku": "claude-haiku-4-5-20250929"
+      }
     }
   },
   "task_adapters": {
@@ -28,6 +30,7 @@
     }
   },
   "defaults": {
+    "agent_sdk": "claude-agent-sdk",
     "initializer_model": "opus",
     "coding_model": "sonnet",
     "audit_model": "opus",

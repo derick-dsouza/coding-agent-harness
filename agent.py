@@ -331,26 +331,32 @@ def should_run_audit(project_dir: Path) -> bool:
     Check if it's time to run an audit session.
     
     An audit is triggered when there are >= AUDIT_INTERVAL features
-    with the "awaiting-audit" label.
+    awaiting audit. This includes:
+    1. Tasks with "awaiting-audit" label (new workflow)
+    2. Tasks in "Done" status without "audited" label (legacy tasks)
     
     Returns:
         True if audit should run, False otherwise
     """
-    # This is a simplified check - in a real implementation, you would
-    # query the task management system to count issues with "awaiting-audit" label
-    # For now, we track this in .task_project.json
-    
     from progress import load_task_project_state
     
     state = load_task_project_state(project_dir)
     if not state or not state.get("initialized"):
         return False
     
-    # Get count of features awaiting audit from state
-    # In practice, this would query task management API
+    # Get count from state file (updated by coding agent)
+    # This count includes both:
+    # - Explicitly labeled "awaiting-audit" tasks
+    # - Done tasks without audit labels (legacy)
     awaiting_count = state.get("features_awaiting_audit", 0)
     
-    return awaiting_count >= AUDIT_INTERVAL
+    # Also check for legacy done tasks without audit labels
+    # This ensures we catch old tasks that were completed before audit feature
+    legacy_done_count = state.get("legacy_done_without_audit", 0)
+    
+    total_awaiting = awaiting_count + legacy_done_count
+    
+    return total_awaiting >= AUDIT_INTERVAL
 
 
 async def run_agent_session(

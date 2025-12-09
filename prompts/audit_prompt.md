@@ -48,19 +48,33 @@ against the original specification.
 
 ## STEP 2: FIND FEATURES AWAITING AUDIT
 
-Query your task management system to find all features ready for audit:
+Query your task management system to find all features ready for audit.
 
-```
-List issues with:
-- project_id: [from .task_project.json]
-- status: DONE
-- labels: ["awaiting-audit"]
-- limit: 20 (get all pending audits)
-```
+### TWO CATEGORIES OF FEATURES TO AUDIT:
 
-You should find approximately 10 features awaiting audit.
+1. **Modern workflow** - Features with explicit audit label:
+   ```
+   List issues with:
+   - project_id: [from .task_project.json]
+   - status: DONE
+   - labels: ["awaiting-audit"]
+   - limit: 20
+   ```
 
-**If you find 0 features with "awaiting-audit" label:**
+2. **Legacy workflow** - Done features without audit labels (backwards compatibility):
+   ```
+   List issues with:
+   - project_id: [from .task_project.json]
+   - status: DONE
+   - labels: NOT including ["awaiting-audit", "audited"]
+   - limit: 20
+   ```
+
+**Combine both lists** - these are ALL features awaiting audit.
+
+**Expected Counts:**
+
+**If you find 0 total features:**
 - This audit session was triggered incorrectly
 - Add a comment to META issue explaining this
 - End the session cleanly
@@ -73,6 +87,12 @@ You should find approximately 10 features awaiting audit.
 - This is unusual (backlog of audits)
 - Still audit all of them
 - Note in META issue that audit interval should be checked
+
+**For legacy features (without labels):**
+- These were completed before the audit workflow was implemented
+- Treat them the same as labeled features
+- Add the "awaiting-audit" label when you start auditing them
+- This ensures they're tracked properly going forward
 
 ---
 
@@ -93,11 +113,21 @@ Otherwise, start servers manually based on the tech stack in `app_spec.txt`.
 
 ## STEP 4: AUDIT EACH FEATURE (COMPREHENSIVE TESTING)
 
-For each feature with label "awaiting-audit":
+For each feature awaiting audit (both labeled and legacy):
 
 ### 4A. Read the Original Issue
 
 Get the issue details to review test steps and acceptance criteria.
+
+**For legacy features (without audit labels):**
+Before starting the audit, add the "awaiting-audit" label to the feature.
+This ensures proper tracking and consistency with the modern workflow.
+
+```
+Update issue [ISSUE-ID]:
+- Add label: "awaiting-audit"
+- Add comment: "Starting audit review (legacy feature)"
+```
 
 Read carefully:
 - Feature description
@@ -573,7 +603,7 @@ Update `.task_project.json` to track audit progress:
 CURRENT=$(cat .task_project.json)
 
 # Update with audit information
-# (In practice, you'd use a proper JSON editor)
+# (In practice, you'd use a proper JSON editor - jq, Python, or manual edit)
 
 # The state should track:
 {
@@ -584,18 +614,26 @@ CURRENT=$(cat .task_project.json)
   "project_name": "[project name]",
   "meta_issue_id": "[META issue ID]",
   "total_issues": [number],
-  "audits_completed": [increment this],
-  "last_audit_date": "[current date]",
-  "last_audit_features_reviewed": [number of features in this audit],
-  "last_audit_bugs_found": [number of bugs],
+  "audits_completed": [increment this by 1],
+  "features_awaiting_audit": 0,  # Reset to 0 after audit
+  "legacy_done_without_audit": 0,  # Reset to 0 after audit (all legacy tasks now labeled)
+  "last_audit_date": "[current date/time]",
+  "last_audit_features_reviewed": [number of features audited in this session],
+  "last_audit_bugs_found": [number of bugs/issues created],
   "notes": "Last audit: [brief summary]"
 }
 ```
+
+**Important:** Both counters (`features_awaiting_audit` and `legacy_done_without_audit`) 
+should be reset to 0 after the audit, since:
+1. All audited features now have "audited" label (no longer awaiting)
+2. All legacy features were labeled "awaiting-audit" then "audited" during this session
 
 This helps track:
 - How many audits have been performed
 - When the last audit was
 - Audit effectiveness (bugs found per audit)
+- Ensures audit counter restarts correctly for next cycle
 
 ---
 

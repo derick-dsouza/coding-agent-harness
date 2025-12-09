@@ -231,6 +231,35 @@ Add a comment to the "[META] Project Progress Tracker" issue with session summar
 - [Any blockers or concerns]
 ```
 
+### STEP 11.5: UPDATE LOCAL STATE (AUDIT TRACKING)
+
+When you mark features as DONE with "awaiting-audit" label, update `.task_project.json`:
+
+**If this is a NEW feature (you added "awaiting-audit" label):**
+```bash
+# Increment the features_awaiting_audit counter
+# Use jq or Python to update JSON, or manually edit
+
+# Example with jq:
+jq '.features_awaiting_audit = (.features_awaiting_audit // 0) + 1' .task_project.json > tmp.$$.json && mv tmp.$$.json .task_project.json
+```
+
+**If you discover LEGACY features (Done without audit labels):**
+When querying issues, you might find tasks in "Done" status that lack both 
+"awaiting-audit" and "audited" labels. These are legacy tasks completed before 
+the audit system was implemented.
+
+Track these separately:
+```bash
+# Count how many legacy done tasks you found (without audit labels)
+LEGACY_COUNT=[number]
+
+# Update state file:
+jq '.legacy_done_without_audit = [number]' .task_project.json > tmp.$$.json && mv tmp.$$.json .task_project.json
+```
+
+This helps trigger audit sessions at the right time (when total awaiting >= 10).
+
 ### STEP 12: END SESSION CLEANLY
 
 Before context fills up:

@@ -11,16 +11,29 @@ import json
 import sys
 import urllib.request
 import urllib.error
+from pathlib import Path
 
 # Project ID from command line
 PROJECT_ID = "c4ecebaf-9e40-4210-8301-f86be620124f"
 
 
+def _get_linear_api_key_name():
+    """Get the LINEAR API key environment variable name from defaults."""
+    defaults_path = Path(__file__).parent / "autocode-defaults.json"
+    try:
+        with open(defaults_path, 'r') as f:
+            defaults = json.load(f)
+            return defaults.get("task_adapters", {}).get("linear", {}).get("api_key_env", "LINEAR_API_KEY")
+    except:
+        return "LINEAR_API_KEY"  # Fallback to default
+
+
 def make_linear_request(query: str) -> dict:
     """Make a GraphQL request to Linear API."""
-    linear_key = os.environ.get('LINEAR_API_KEY')
+    api_key_name = _get_linear_api_key_name()
+    linear_key = os.environ.get(api_key_name)
     if not linear_key:
-        raise ValueError('LINEAR_API_KEY environment variable is not set')
+        raise ValueError(f'{api_key_name} environment variable is not set')
 
     url = 'https://api.linear.app/graphql'
     headers = {

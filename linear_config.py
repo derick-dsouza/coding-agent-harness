@@ -7,9 +7,21 @@ These values are used in prompts and for project state management.
 """
 
 import os
+import json
+from pathlib import Path
+
+def _get_linear_api_key_name():
+    """Get the LINEAR API key environment variable name from defaults."""
+    defaults_path = Path(__file__).parent / "autocode-defaults.json"
+    try:
+        with open(defaults_path, 'r') as f:
+            defaults = json.load(f)
+            return defaults.get("task_adapters", {}).get("linear", {}).get("api_key_env", "LINEAR_API_KEY")
+    except:
+        return "LINEAR_API_KEY"  # Fallback to default
 
 # Environment variables (must be set before running)
-LINEAR_API_KEY = os.environ.get("LINEAR_API_KEY")
+LINEAR_API_KEY = os.environ.get(_get_linear_api_key_name())
 
 # Default number of issues to create (can be overridden via command line)
 DEFAULT_ISSUE_COUNT = 50

@@ -116,6 +116,7 @@ def print_progress_summary(project_dir: Path) -> None:
     meta_issue = state.get("meta_issue_id", "unknown")
     audits_completed = state.get("audits_completed", 0)
     features_awaiting = state.get("features_awaiting_audit", 0)
+    legacy_done = state.get("legacy_done_without_audit", 0)
     adapter_type = state.get("adapter_type", "linear")  # Default to linear for backward compat
 
     print(f"\nTask Management Project Status ({adapter_type}):")
@@ -123,12 +124,23 @@ def print_progress_summary(project_dir: Path) -> None:
     print(f"  META issue ID: {meta_issue}")
     print(f"  (Check {adapter_type.title()} for current Done/In Progress/Todo counts)")
     
-    if audits_completed > 0:
+    if audits_completed > 0 or features_awaiting > 0 or legacy_done > 0:
         print(f"\nAudit Status:")
         print(f"  Audits completed: {audits_completed}")
-        print(f"  Features awaiting audit: {features_awaiting}")
-        if features_awaiting >= 10:
+        
+        total_awaiting = features_awaiting + legacy_done
+        
+        if legacy_done > 0:
+            print(f"  Features awaiting audit:")
+            print(f"    - With 'awaiting-audit' label: {features_awaiting}")
+            print(f"    - Legacy (Done, no label): {legacy_done}")
+            print(f"    - Total: {total_awaiting}")
+        else:
+            print(f"  Features awaiting audit: {features_awaiting}")
+        
+        if total_awaiting >= 10:
             print(f"  ⚠️  Audit threshold reached - next session will be an audit")
-        elif features_awaiting > 5:
-            print(f"  ⏳ Approaching audit threshold ({features_awaiting}/10)")
+        elif total_awaiting > 5:
+            print(f"  ⏳ Approaching audit threshold ({total_awaiting}/10)")
+
 
