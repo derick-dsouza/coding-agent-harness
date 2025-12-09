@@ -180,6 +180,13 @@ Environment Variables:
         help="Task management adapter (default: linear). Options: linear, github, beads.",
     )
 
+    parser.add_argument(
+        "--verbose",
+        "-v",
+        action="store_true",
+        help="Enable verbose output including JSON dumps and detailed debug information",
+    )
+
     return parser.parse_args()
 
 
@@ -497,6 +504,7 @@ def main() -> None:
                 coding_model=resolved["coding_model"],
                 audit_model=resolved["audit_model"],
                 max_iterations=resolved["max_iterations"],
+                verbose=args.verbose,
             )
         )
     except KeyboardInterrupt:

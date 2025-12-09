@@ -438,6 +438,7 @@ async def run_agent_session(
     client: ClaudeSDKClient,
     message: str,
     project_dir: Path,
+    verbose: bool = False,
 ) -> tuple[str, str]:
     """
     Run a single agent session using Claude Agent SDK.
@@ -446,6 +447,7 @@ async def run_agent_session(
         client: Claude SDK client
         message: The prompt to send
         project_dir: Project directory path
+        verbose: Enable verbose output including JSON dumps
 
     Returns:
         (status, response_text) where status is:
@@ -501,7 +503,7 @@ async def run_agent_session(
                                 
                                 tracker.track_call(operation, endpoint, metadata)
                         
-                        if hasattr(block, "input"):
+                        if verbose and hasattr(block, "input"):
                             input_str = str(block.input)
                             if len(input_str) > 200:
                                 print(f"   Input: {input_str[:200]}...", flush=True)
@@ -557,6 +559,7 @@ async def run_autonomous_agent(
     coding_model: str,
     audit_model: str,
     max_iterations: Optional[int] = None,
+    verbose: bool = False,
 ) -> None:
     """
     Run the autonomous agent loop.
@@ -568,6 +571,7 @@ async def run_autonomous_agent(
         coding_model: Claude model for coding sessions
         audit_model: Claude model for audit sessions
         max_iterations: Maximum number of iterations (None for unlimited)
+        verbose: Enable verbose output including JSON dumps
     """
     print("\n" + "=" * 70)
     print("  AUTONOMOUS CODING AGENT DEMO")
@@ -701,7 +705,7 @@ async def run_autonomous_agent(
 
         # Run session with async context manager
         async with client:
-            status, response = await run_agent_session(client, prompt, project_dir)
+            status, response = await run_agent_session(client, prompt, project_dir, verbose)
         
         # Invalidate cache based on operations performed
         from linear_cache import get_cache
