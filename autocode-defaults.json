@@ -1,0 +1,37 @@
+{
+  "agent_sdk": "claude-agent-sdk",
+  "models": {
+    "claude": {
+      "opus": "claude-opus-4-5-20251101",
+      "sonnet": "claude-sonnet-4-5-20250929",
+      "haiku": "claude-haiku-4-5-20250929"
+    }
+  },
+  "task_adapters": {
+    "linear": {
+      "name": "Linear",
+      "description": "Linear project management (requires Linear API key)",
+      "cli_command": null,
+      "requires_api_key": true
+    },
+    "github": {
+      "name": "GitHub Issues",
+      "description": "GitHub Issues for task management (requires gh CLI)",
+      "cli_command": "gh",
+      "requires_api_key": false
+    },
+    "beads": {
+      "name": "BEADS",
+      "description": "BEADS local task management (requires bd CLI)",
+      "cli_command": "bd",
+      "requires_api_key": false
+    }
+  },
+  "defaults": {
+    "initializer_model": "opus",
+    "coding_model": "sonnet",
+    "audit_model": "opus",
+    "task_adapter": "linear",
+    "max_iterations": null
+  }
+}

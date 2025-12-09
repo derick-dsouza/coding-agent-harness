@@ -357,8 +357,35 @@ def main() -> None:
         print(f"Error: Project path is not a directory: {project_dir}")
         return
 
-    # Load config file and resolve all settings
+    # Load config file
     config = load_config(project_dir)
+    
+    # First-time setup: Run interactive wizard if no config exists and no CLI args provided
+    config_path = project_dir / CONFIG_FILE
+    if not config_path.exists() and not any([
+        args.spec_file,
+        args.model,
+        args.initializer_model,
+        args.coding_model,
+        args.audit_model,
+        args.task_adapter,
+        args.max_iterations
+    ]):
+        print("\n" + "="*70)
+        print("🚀 FIRST-TIME SETUP DETECTED")
+        print("="*70)
+        print(f"\nNo configuration found in {project_dir}")
+        print("Running interactive setup wizard...\n")
+        
+        # Import and run wizard
+        from config_wizard import run_wizard
+        run_wizard(project_dir)
+        
+        # Reload config after wizard
+        config = load_config(project_dir)
+        print("\n" + "="*70)
+    
+    # Resolve all settings
     resolved = resolve_config(args, project_dir, config)
     if resolved is None:
         return

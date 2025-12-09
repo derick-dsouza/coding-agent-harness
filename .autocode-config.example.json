@@ -1,6 +1,7 @@
 {
   "_comment": "Example configuration for autocode.py - Multi-model optimization with audit system",
   
+  "agent_sdk": "claude-agent-sdk",
   "spec_file": "app_spec.txt",
   
   "_task_manager_comment": "Task management adapter: 'linear', 'github', or 'beads'",
