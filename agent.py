@@ -576,12 +576,27 @@ async def run_autonomous_agent(
     calls_last_hour = tracker.get_call_count_in_window()
     if calls_last_hour > 0:
         cache_stats = cache.get_stats()
-        print(f"📊 Linear API: {calls_last_hour}/1500 calls in last hour")
+        remaining = 1500 - calls_last_hour
+        percent_used = (calls_last_hour / 1500) * 100
+        
+        print(f"📊 Linear API Status:")
+        print(f"   Calls in last hour: {calls_last_hour}/1500 ({percent_used:.1f}% used)")
+        print(f"   Remaining capacity: {remaining} calls")
+        
         if cache_stats['total_hits'] > 0:
-            print(f"📦 Cache: {cache_stats['total_hits']} hits, {cache_stats['hit_rate']*100:.1f}% hit rate")
+            print(f"📦 Cache:")
+            print(f"   Hits: {cache_stats['total_hits']} | Hit rate: {cache_stats['hit_rate']*100:.1f}%")
+            estimated_saved = cache_stats['total_hits']
+            print(f"   Estimated API calls saved: {estimated_saved}")
+        
         if not tracker.is_safe_to_call():
-            print(f"⚠️  WARNING: Approaching rate limit!")
+            print(f"\n⚠️  WARNING: Approaching rate limit!")
             print(f"   Consider waiting {tracker._time_until_safe()}")
+            print(f"   💡 Tip: Review QUERY_OPTIMIZATION_GUIDE.md for reducing API calls")
+        elif calls_last_hour > 1000:
+            print(f"\n⚡ Moderate usage detected ({calls_last_hour} calls)")
+            print(f"   💡 Tip: Use .task_project.json IDs directly to avoid metadata queries")
+        
         print()
 
     if is_first_run:

@@ -40,6 +40,8 @@ The harness automatically caches Linear API responses to reduce API calls:
 - Your updates automatically invalidate cache to prevent stale data
 - No action needed - caching is transparent
 
+**💡 Quick Reference:** See `QUERY_OPTIMIZATION_GUIDE.md` for smart querying patterns.
+
 ### STEP 1: GET YOUR BEARINGS (MANDATORY)
 
 Start by orienting yourself:
