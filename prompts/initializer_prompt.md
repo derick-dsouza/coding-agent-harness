@@ -61,35 +61,41 @@ before proceeding.
 
 ### THIRD: Set Up Project in Task Management System
 
-Before creating issues, you need to set up your project:
+**SMART SETUP: Check Local State First!**
 
-1. **Get the team ID:**
-   List all teams in your task management system to see available teams.
-   Note the team ID (e.g., "TEAM-123") for the team where you'll create issues.
+Before creating anything, check if setup is already done:
 
-2. **Create a project:**
-   Create a new project in your task management system:
-   - `name`: Use the project name from app_spec.txt (e.g., "Claude.ai Clone")
-   - `team_ids`: Array with your team ID
-   - `description`: Brief project overview from app_spec.txt
+1. **Check .task_project.json FIRST:**
+   ```bash
+   cat .task_project.json
+   ```
+   If this file exists with `team_id` and `project_id`, **USE those values**.
+   Do NOT query or create again!
 
-   Save the returned project ID - you'll use it when creating issues.
+2. **Only if no local state:**
 
-3. **Create audit workflow labels:**
-   Create these labels for the audit system:
-   - `awaiting-audit`: Features completed but not yet reviewed
-   - `audited`: Features that passed audit review
-   - `fix`: Issues created by audit agent for bugs
-   - `audit-finding`: Bugs found during audit
-   - `critical-fix-applied`: Critical issues fixed during audit
-   - `has-bugs`: Features with known bugs awaiting fixes
-   - `refactor`: Code quality improvements
-   - `systemic`: Issues affecting multiple features
+   a. **Get the team ID (ONCE):**
+      List all teams in your task management system.
+      Note the team ID (e.g., "TEAM-123").
+      **Save it immediately** to .task_project.json (see step 4).
+   
+   b. **Check for existing project (avoid duplicates):**
+      List projects in your team to see if project already exists.
+      If found, use existing project ID.
+      If not found, create new project.
+   
+   c. **Create labels** (only if needed):
+      Create these labels for the audit system:
+      - `awaiting-audit`: Features completed but not yet reviewed
+      - `audited`: Features that passed audit review
+      - `fix`: Issues created by audit agent for bugs
+      - `audit-finding`: Bugs found during audit
+      - `critical-fix-applied`: Critical issues fixed during audit
+      - `has-bugs`: Features with known bugs awaiting fixes
+      - `refactor`: Code quality improvements
+      - `systemic`: Issues affecting multiple features
 
-   These labels enable the periodic audit system where a senior model reviews
-   batches of completed work for quality assurance.
-
-4. **IMMEDIATELY save partial state (before creating issues):**
+3. **IMMEDIATELY save state (before creating issues):**
    Create `.task_project.json` right away with `"initialized": false`:
    ```json
    {

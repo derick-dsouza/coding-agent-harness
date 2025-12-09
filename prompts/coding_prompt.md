@@ -66,6 +66,64 @@ for the application you're building.
 
 ### STEP 2: CHECK PROJECT STATUS
 
+**IMPORTANT: Query Smart, Not Hard**
+
+Before querying the API, check what you already know:
+- `.task_project.json` has `project_id`, `team_id`, and `meta_issue_id`
+- You DON'T need to query for teams or projects - IDs are in local state
+- Use the saved IDs directly
+
+**Query Decision Tree:**
+```
+Need information?
+├─ project_id/team_id? → Read .task_project.json (NO API call)
+├─ META issue ID? → Read .task_project.json (NO API call)
+├─ Recent issue list? → Already in your context from last query? (NO API call)
+└─ Fresh data needed? → Query API (but cache will help!)
+```
+
+**Smart Querying Pattern:**
+
+1. **Read local state FIRST:**
+   ```bash
+   cat .task_project.json
+   ```
+   This gives you `project_id`, `team_id`, and `meta_issue_id`. **Use these directly.**
+
+2. **List issues ONCE** (full objects returned, cache-friendly):
+   ```
+   list_issues(project: "project_id_from_json")
+   ```
+   **IMPORTANT:** This returns FULL issue objects with title, status, labels, description.
+   You do NOT need to call `get_issue` for issues you just listed!
+   
+   Keep this list in your mental model for the session.
+
+3. **Only use get_issue when:**
+   - You need comments on a specific issue
+   - You need the full description of ONE specific issue
+   - NOT for issues you just got from list_issues!
+
+4. **Trust update responses:**
+   When you update an issue, the response contains the updated issue.
+   You do NOT need to query it again to verify!
+
+**What NOT to do:**
+- ❌ Query teams/projects (you have IDs in .task_project.json)
+- ❌ Call get_issue for every issue (list_issues gives you full objects)
+- ❌ Re-query the list multiple times in same session (keep mental model)
+- ❌ Query after every update (trust the response)
+
+**What TO do:**
+- ✅ Read .task_project.json first
+- ✅ Query list_issues ONCE at start of session
+- ✅ Keep issue list in your mental model
+- ✅ Use get_issue only for comments or specific deep dives
+
+---
+
+**Now, check project status:**
+
 Query your task management system to understand current project state. The `.task_project.json` file
 contains the `project_id` and `team_id` you should use for all queries.
 
@@ -73,12 +131,16 @@ contains the `project_id` and `team_id` you should use for all queries.
    List issues in the project from `.task_project.json`
    and search for "[META] Project Progress Tracker".
    Read the issue description and recent comments for context from previous sessions.
+   
+   **Note:** The META issue will be IN the list_issues response. No need to query it separately!
 
 2. **Count progress:**
-   List all issues in the project to count:
+   From the list_issues response (you already have this!), count:
    - Issues with status DONE = completed
    - Issues with status TODO = remaining
    - Issues with status IN_PROGRESS = currently being worked on
+   
+   **Don't query again** - use the list you already have in context!
 
 3. **Check and label legacy issues (IMPORTANT):**
    Query for Done issues that do NOT have either "awaiting-audit" OR "audited" labels.

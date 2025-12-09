@@ -60,31 +60,51 @@ against the original specification.
 
 ## STEP 2: FIND FEATURES AWAITING AUDIT
 
-Query your task management system to find all features ready for audit.
+**EFFICIENT QUERYING: One Query, Complete Picture**
 
-### TWO CATEGORIES OF FEATURES TO AUDIT:
+Before querying, read your local state:
+```bash
+cat .task_project.json
+```
+This has `project_id`, `team_id`, and `meta_issue_id`. **Use these directly** - no need to query for them.
 
-1. **Modern workflow** - Features with explicit audit label:
-   ```
-   List issues with:
-   - project_id: [from .task_project.json]
-   - status: DONE
-   - labels: ["awaiting-audit"]
-   - limit: 20
-   ```
+**Single Efficient Query:**
 
-2. **Legacy workflow** - Done features without audit labels (backwards compatibility):
-   **NOTE:** The coding agent should have already labeled these with "awaiting-audit"
-   in STEP 2 of their workflow. However, query for any remaining ones:
-   ```
-   List issues with:
-   - project_id: [from .task_project.json]
-   - status: DONE
-   - labels: NOT including ["awaiting-audit", "audited"]
-   - limit: 20
-   ```
+Instead of multiple queries, list ALL Done issues ONCE:
+```
+list_issues:
+  project_id: [from .task_project.json]
+  status: DONE
+  limit: 100  # Get all done issues
+```
 
-**Combine both lists** - these are ALL features awaiting audit.
+**From this ONE response**, filter locally into two categories:
+
+1. **Modern workflow** - Issues with "awaiting-audit" label
+2. **Legacy workflow** - Issues WITHOUT "awaiting-audit" AND WITHOUT "audited" labels
+
+**IMPORTANT:** The list_issues response contains FULL issue objects including:
+- Title, description, status
+- All labels
+- Created/updated dates
+- Issue IDs
+
+**You do NOT need to:**
+- ❌ Query each issue individually
+- ❌ Make separate queries for different filters
+- ❌ Query metadata you already have in .task_project.json
+
+**You SHOULD:**
+- ✅ List issues ONCE
+- ✅ Filter the results locally in your context
+- ✅ Keep this list for the entire audit session
+- ✅ Only use get_issue for reading comments (if needed)
+
+---
+
+### After Getting the List:
+
+**Combine both filtered lists** - these are ALL features awaiting audit.
 
 **Expected Counts:**
 
