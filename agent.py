@@ -475,7 +475,8 @@ async def run_agent_session(
                         print(block.text, end="", flush=True)
                     elif block_type == "ToolUseBlock" and hasattr(block, "name"):
                         tool_name = block.name
-                        print(f"\n[Tool: {tool_name}]", flush=True)
+                        if verbose:
+                            print(f"\n[Tool: {tool_name}]", flush=True)
                         
                         # Track Linear API calls when tool is invoked
                         if "mcp__linear__" in tool_name:
@@ -542,7 +543,8 @@ async def run_agent_session(
                             if "mcp__linear__" in tool_name:
                                 rate_limit_handler.rate_limit_handler.track_api_call()
                             rate_limit_handler.reset()
-                            print("   [Done]", flush=True)
+                            if verbose:
+                                print("   [Done]", flush=True)
 
         print("\n" + "-" * 70 + "\n")
         return "continue", response_text
