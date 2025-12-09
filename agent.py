@@ -228,13 +228,13 @@ class UnifiedRateLimitHandler:
 
     def __init__(self):
         self.claude_handler = ClaudeRateLimitHandler()
-        self.linear_handler = LinearRateLimitHandler()
+        self.rate_limit_handler = LinearRateLimitHandler()
 
     def is_rate_limit_error(self, content: str, tool_name: str = "") -> bool:
         """Check if content indicates any rate limit error."""
         return (
             self.claude_handler.is_claude_rate_limit(content)
-            or self.linear_handler.is_linear_rate_limit(content, tool_name)
+            or self.rate_limit_handler.is_linear_rate_limit(content, tool_name)
         )
 
     async def handle_rate_limit(self, content: str, tool_name: str = "") -> tuple[str, int]:
@@ -249,8 +249,8 @@ class UnifiedRateLimitHandler:
             (action, wait_time) where action is "wait" or "exit"
         """
         # Check Linear first (more specific pattern)
-        if self.linear_handler.is_linear_rate_limit(content, tool_name):
-            return await self.linear_handler.handle_rate_limit(content)
+        if self.rate_limit_handler.is_linear_rate_limit(content, tool_name):
+            return await self.rate_limit_handler.handle_rate_limit(content)
         
         # Otherwise assume Claude API rate limit
         elif self.claude_handler.is_claude_rate_limit(content):
@@ -264,7 +264,7 @@ class UnifiedRateLimitHandler:
     def reset(self) -> None:
         """Reset both handlers."""
         self.claude_handler.reset()
-        self.linear_handler.reset()
+        self.rate_limit_handler.reset()
 
 
 class TaskInitializationHandler:

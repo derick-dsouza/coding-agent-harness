@@ -10,10 +10,11 @@ with local state cached in .task_project.json.
 import json
 from pathlib import Path
 
-from linear_config import LINEAR_PROJECT_MARKER
-
-# Generic task project marker (backward compatible with .linear_project.json)
+# Generic task project marker
 TASK_PROJECT_MARKER = ".task_project.json"
+
+# Legacy marker names for backward compatibility
+LEGACY_LINEAR_MARKER = ".linear_project.json"
 
 
 def load_task_project_state(project_dir: Path) -> dict | None:
@@ -33,7 +34,7 @@ def load_task_project_state(project_dir: Path) -> dict | None:
     
     # Fallback to legacy format for backward compatibility
     if not marker_file.exists():
-        marker_file = project_dir / LINEAR_PROJECT_MARKER
+        marker_file = project_dir / LEGACY_LINEAR_MARKER
 
     if not marker_file.exists():
         return None
