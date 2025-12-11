@@ -399,7 +399,7 @@ Read the issue description carefully. It contains:
 - Are there any security concerns (XSS, injection, exposed secrets)?
 - Is error handling complete and user-friendly?
 - Would a senior developer approve this code?
-- **File size check:** Are any files over 250 lines? Consider splitting into modules.
+- **File size check:** Are any files over 400 lines? Consider splitting into modules.
 - **Scope check:** Did you only modify files listed in the issue? If not, why?
 
 Address any concerns before proceeding to verification. This self-review

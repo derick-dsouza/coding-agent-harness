@@ -301,7 +301,7 @@ Look for:
 - Performance issues (N+1 queries, unnecessary re-renders)
 - **Verification evidence** (did they actually test this?)
 - **Scope creep:** Did they modify files not listed in the issue's "Files to modify"?
-- **File bloat:** Are any modified files over 250 lines? Flag for refactoring.
+- **File bloat:** Are any modified files over 400 lines? Flag for refactoring.
 - **Time vs estimate:** If issue had an estimate, did implementation seem proportional?
 
 ### 4C. Test Through the Browser (MANDATORY)
@@ -609,7 +609,7 @@ Look across all features audited:
 - Are there common security mistakes being repeated?
 - Is there a lack of input validation across features?
 
-**If you find files over 250 lines:**
+**If you find files over 400 lines:**
 
 Create a [REFACTOR] issue for file splitting:
 ```
@@ -620,7 +620,7 @@ Description:
 ## File Size Issue Found During Audit
 
 **File:** [path/to/file]
-**Current size:** [X] lines (threshold: 250)
+**Current size:** [X] lines (threshold: 400)
 **Found in:** [Feature issue ID]
 
 ### Recommended Split
@@ -629,7 +629,7 @@ Description:
 - [module3.ts]: [responsibility - ~70 lines]
 
 ### Why Split?
-- Files over 250 lines are harder to maintain
+- Files over 400 lines are harder to maintain
 - Smaller modules are easier to test
 - Reduces merge conflicts when multiple issues touch same area
 """
