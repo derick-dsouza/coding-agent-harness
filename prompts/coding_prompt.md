@@ -82,6 +82,46 @@ result = batch_add_labels(issue_ids, label_ids)  # 1 API call instead of 3!
 
 ---
 
+## 🎯 BEADS TASK MANAGEMENT (If using BEADS)
+
+**If your task management system is BEADS**, use the `bd` CLI command via bash:
+
+**Common BEADS Commands:**
+```bash
+# List open issues
+bd list --status open --json
+
+# Get specific issue
+bd show ISSUE_ID --json
+
+# Update issue status to in_progress
+bd update ISSUE_ID --status in_progress
+
+# Update issue status to closed (DONE)
+bd update ISSUE_ID --status closed
+
+# Add awaiting-audit label
+bd label add ISSUE_ID awaiting-audit
+
+# Add comment (append to description)
+bd update ISSUE_ID --description "$(bd show ISSUE_ID --json | jq -r .description)\n\n---\nProgress: Feature completed"
+```
+
+**BEADS Workflow:**
+1. **List issues:** `bd list --status open --limit 100 --json`
+2. **Pick next issue:** Select from `open` status issues
+3. **Start work:** `bd update ISSUE_ID --status in_progress`
+4. **Implement the feature** 
+5. **Mark done:** `bd update ISSUE_ID --status closed` and `bd label add ISSUE_ID awaiting-audit`
+
+**Benefits:**
+- **No rate limits** - BEADS is local
+- **Git-backed** - All changes tracked in .beads/ directory
+- **Fast** - No network calls
+- **Simple** - Direct bash commands
+
+---
+
 ### STEP 1: GET YOUR BEARINGS (MANDATORY)
 
 Start by orienting yourself:

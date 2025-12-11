@@ -32,6 +32,9 @@ ALLOWED_COMMANDS = {
     "node",
     # Version control
     "git",
+    # Task management
+    "bd",    # BEADS CLI for local task management
+    "gh",    # GitHub CLI for GitHub Issues
     # Process management
     "ps",
     "lsof",
@@ -39,6 +42,8 @@ ALLOWED_COMMANDS = {
     "pkill",  # For killing dev servers; validated separately
     # Script execution
     "init.sh",  # Init scripts; validated separately
+    # JSON processing
+    "jq",    # For parsing JSON in bash scripts
 }
 
 # Commands that need additional validation even when in the allowlist

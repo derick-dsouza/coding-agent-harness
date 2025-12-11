@@ -682,7 +682,7 @@ async def run_autonomous_agent(
         if should_run_audit(project_dir):
             # Audit session: Review completed work with audit model
             model = audit_model
-            prompt = get_audit_prompt(spec_file)
+            prompt = get_audit_prompt(spec_file, task_adapter)
             session_type = "AUDIT"
             print("=" * 70)
             print("  🔍 AUDIT SESSION - Quality Assurance Review")
@@ -693,7 +693,7 @@ async def run_autonomous_agent(
         elif is_first_run:
             # Initialization session: Set up project and create issues
             model = initializer_model
-            prompt = get_initializer_prompt(spec_file)
+            prompt = get_initializer_prompt(spec_file, task_adapter)
             session_type = "INITIALIZATION"
             print(f"Using initializer model: {model}\n")
             is_first_run = False  # Only use initializer once
@@ -701,7 +701,7 @@ async def run_autonomous_agent(
         else:
             # Coding session: Implement features
             model = coding_model
-            prompt = get_coding_prompt(spec_file)
+            prompt = get_coding_prompt(spec_file, task_adapter)
             session_type = "CODING"
             print(f"Using coding model: {model}\n")
 

@@ -37,6 +37,54 @@ If using Linear, the harness caches API responses to reduce rate limit pressure:
 **Note:** First session may be slower as cache is being populated.
 For other task managers (GitHub Issues, BEADS), caching may work differently or not be available.
 
+### BEADS TASK MANAGEMENT (If using BEADS)
+
+**If your task management system is BEADS:**
+
+BEADS is a git-backed, local task management system. Use the `bd` CLI command directly via bash:
+
+**Key BEADS Commands:**
+```bash
+# List all open issues
+bd list --status open --json
+
+# List specific issue
+bd show ISSUE_ID --json
+
+# Create issue
+bd create "Issue Title" \
+  --description "Issue description" \
+  --priority 1 \
+  --type task \
+  --labels backend,urgent
+
+# Update issue status
+bd update ISSUE_ID --status in_progress
+
+# Add label
+bd label add ISSUE_ID label-name
+
+# Add comment (appends to description)
+bd update ISSUE_ID --description "$(bd show ISSUE_ID --json | jq -r .description)\n\n---\nComment: Your comment here"
+```
+
+**BEADS Workflow:**
+1. **Skip team/project setup** - BEADS is project-local, no teams/projects to create
+2. **Check for existing issues:** Run `bd list --status open --json` to see what exists
+3. **Create issues directly:** Use `bd create` for each feature from app_spec.txt
+4. **Save state:** Create `.task_project.json` with:
+   ```json
+   {
+     "initialized": true,
+     "created_at": "[timestamp]",
+     "project_id": "beads-local",
+     "issues_created": [count from bd list],
+     "notes": "BEADS issues created"
+   }
+   ```
+
+**Important:** BEADS has NO rate limits - you can create issues rapidly!
+
 ### FIRST: Check for Existing State (CRITICAL - Prevents Duplicates)
 
 **Before doing anything else**, check if initialization was partially completed:
