@@ -117,14 +117,23 @@ class WorkerCoordinator:
             "pid": os.getpid(),
             "started": self.start_time,
             "heartbeat": time.time(),
-            "claimed_issues": self.claimed_issues,
-            "claimed_files": self.claimed_files,
+            "claimed_issues": list(self.claimed_issues),  # Copy to avoid mutation issues
+            "claimed_files": list(self.claimed_files),    # Copy to avoid mutation issues
         }
         
         # Write atomically by writing to temp file then renaming
         temp_file = self.lock_file.with_suffix(".tmp")
-        temp_file.write_text(json.dumps(data, indent=2))
-        temp_file.rename(self.lock_file)
+        try:
+            temp_file.write_text(json.dumps(data, indent=2))
+            temp_file.rename(self.lock_file)
+        except OSError as e:
+            # Handle case where directory doesn't exist or permission issues
+            if temp_file.exists():
+                try:
+                    temp_file.unlink()
+                except:
+                    pass
+            # Don't raise - heartbeat failure shouldn't crash the worker
     
     async def heartbeat_loop(self) -> None:
         """
@@ -709,7 +718,10 @@ def check_issue_available(project_dir: Path, issue_id: str) -> bool:
     Returns:
         True if issue is available, False if claimed
     """
-    claims_dir = project_dir / ".autocode-workers" / "claims"
+    project_dir = Path(project_dir)
+    workers_dir = project_dir / ".autocode-workers"
+    claims_dir = workers_dir / "claims"
+    
     if not claims_dir.exists():
         return True
     
@@ -719,20 +731,34 @@ def check_issue_available(project_dir: Path, issue_id: str) -> bool:
     if not claim_file.exists():
         return True
     
-    # Check if claim is stale
+    # Check if claim is stale by verifying worker is still alive
     try:
         data = json.loads(claim_file.read_text())
+        claim_worker = data.get("worker_id")
         claim_time = data.get("claimed_at", 0)
+        
+        # Check if claim is too old
         if time.time() - claim_time > CLAIM_STALE_TIMEOUT_SECONDS:
             return True  # Stale claim
-        return False  # Active claim
-    except:
+        
+        # Check if worker is still alive
+        worker_lock = workers_dir / f"worker-{claim_worker}.lock"
+        if not worker_lock.exists():
+            return True  # Worker is dead
+        
+        worker_data = json.loads(worker_lock.read_text())
+        heartbeat_age = time.time() - worker_data.get("heartbeat", 0)
+        if heartbeat_age > HEARTBEAT_TIMEOUT_SECONDS:
+            return True  # Worker heartbeat expired
+        
+        return False  # Active claim by live worker
+    except (json.JSONDecodeError, IOError, OSError):
         return True
 
 
 def list_claimed_issues(project_dir: Path) -> List[str]:
     """
-    List all currently claimed issues.
+    List all currently claimed issues (by live workers only).
     
     Args:
         project_dir: Project directory
@@ -740,20 +766,39 @@ def list_claimed_issues(project_dir: Path) -> List[str]:
     Returns:
         List of claimed issue IDs
     """
-    claims_dir = project_dir / ".autocode-workers" / "claims"
+    project_dir = Path(project_dir)
+    workers_dir = project_dir / ".autocode-workers"
+    claims_dir = workers_dir / "claims"
+    
     if not claims_dir.exists():
         return []
     
-    claimed = []
+    # First, get active worker IDs
+    active_worker_ids = set()
     now = time.time()
+    
+    for lock_file in workers_dir.glob("worker-*.lock"):
+        try:
+            data = json.loads(lock_file.read_text())
+            heartbeat_age = now - data.get("heartbeat", 0)
+            if heartbeat_age < HEARTBEAT_TIMEOUT_SECONDS:
+                active_worker_ids.add(data.get("worker_id"))
+        except (json.JSONDecodeError, IOError):
+            continue
+    
+    # Now filter claims by active workers
+    claimed = []
     
     for claim_file in claims_dir.glob("*.claim"):
         try:
             data = json.loads(claim_file.read_text())
+            claim_worker = data.get("worker_id")
             claim_time = data.get("claimed_at", 0)
-            if now - claim_time < CLAIM_STALE_TIMEOUT_SECONDS:
+            
+            # Only include if worker is active AND claim is not too old
+            if claim_worker in active_worker_ids and now - claim_time < CLAIM_STALE_TIMEOUT_SECONDS:
                 claimed.append(data.get("issue_id", claim_file.stem))
-        except:
+        except (json.JSONDecodeError, IOError):
             continue
     
     return claimed
@@ -772,12 +817,27 @@ def check_file_conflicts(project_dir: Path, files_to_check: List[str]) -> List[s
     Returns:
         List of files that have conflicts (locked by other workers)
     """
-    files_dir = project_dir / ".autocode-workers" / "files"
+    project_dir = Path(project_dir)
+    workers_dir = project_dir / ".autocode-workers"
+    files_dir = workers_dir / "files"
+    
     if not files_dir.exists():
         return []
     
-    conflicts = []
+    # First, get active worker IDs
+    active_worker_ids = set()
     now = time.time()
+    
+    for lock_file in workers_dir.glob("worker-*.lock"):
+        try:
+            data = json.loads(lock_file.read_text())
+            heartbeat_age = now - data.get("heartbeat", 0)
+            if heartbeat_age < HEARTBEAT_TIMEOUT_SECONDS:
+                active_worker_ids.add(data.get("worker_id"))
+        except (json.JSONDecodeError, IOError):
+            continue
+    
+    conflicts = []
     
     for file_path in files_to_check:
         # Sanitize path
@@ -792,10 +852,13 @@ def check_file_conflicts(project_dir: Path, files_to_check: List[str]) -> List[s
         if lock_file.exists():
             try:
                 data = json.loads(lock_file.read_text())
+                lock_worker = data.get("worker_id")
                 lock_time = data.get("locked_at", 0)
-                if now - lock_time < CLAIM_STALE_TIMEOUT_SECONDS:
+                
+                # Only conflict if worker is active AND lock is not too old
+                if lock_worker in active_worker_ids and now - lock_time < CLAIM_STALE_TIMEOUT_SECONDS:
                     conflicts.append(file_path)
-            except:
+            except (json.JSONDecodeError, IOError):
                 continue
     
     return conflicts
@@ -812,6 +875,7 @@ def get_files_locked_by_issue(project_dir: Path, issue_id: str) -> List[str]:
     Returns:
         List of file paths locked by this issue
     """
+    project_dir = Path(project_dir)
     safe_id = issue_id.replace("/", "_").replace("\\", "_")
     claim_file = project_dir / ".autocode-workers" / "claims" / f"{safe_id}.claim"
     
@@ -821,5 +885,5 @@ def get_files_locked_by_issue(project_dir: Path, issue_id: str) -> List[str]:
     try:
         data = json.loads(claim_file.read_text())
         return data.get("files", [])
-    except:
+    except (json.JSONDecodeError, IOError):
         return []
