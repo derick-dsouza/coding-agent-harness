@@ -49,10 +49,29 @@ def check_cli_available(command: str) -> bool:
     return shutil.which(command) is not None
 
 
-def prompt_task_adapter(defaults: dict) -> tuple[str, dict]:
+def detect_beads_repo(project_dir: Path) -> bool:
+    """
+    Detect if a BEADS repository exists in the project directory.
+    BEADS stores its data in a .beads directory.
+    """
+    beads_dir = project_dir / ".beads"
+    return beads_dir.exists() and beads_dir.is_dir()
+
+
+def prompt_task_adapter(defaults: dict, project_dir: Path) -> tuple[str, dict]:
     """Prompt user to select task adapter and configure it"""
     adapters = defaults["task_adapters"]
     default_adapter = defaults["defaults"]["task_adapter"]
+    
+    # Detect BEADS repository
+    beads_detected = detect_beads_repo(project_dir)
+    if beads_detected:
+        default_adapter = "beads"
+        print("\n" + "="*70)
+        print("🔍 BEADS REPOSITORY DETECTED")
+        print("="*70)
+        print(f"Found .beads directory in: {project_dir}")
+        print("Defaulting to BEADS task manager.\n")
     
     # Build choices with availability info
     choices = []
@@ -195,7 +214,7 @@ def create_config(project_dir: Path) -> dict:
     defaults = load_defaults()
     
     # Prompt for task adapter
-    task_adapter, adapter_config = prompt_task_adapter(defaults)
+    task_adapter, adapter_config = prompt_task_adapter(defaults, project_dir)
     
     # Prompt for models
     initializer, coding, audit = prompt_models(defaults)
