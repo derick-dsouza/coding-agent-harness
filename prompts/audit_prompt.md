@@ -237,7 +237,39 @@ Read carefully:
 - Category (functional vs style)
 - Any comments from implementation
 
-### 4B. Review the Implementation
+### 4B. Check for Verification Evidence (MANDATORY FIRST CHECK)
+
+**Before doing anything else, verify the coding agent actually tested their work:**
+
+```bash
+# Check for verification comment on the issue
+# Look for comments containing "✅ Verified" or "Verified:"
+```
+
+**Verification Audit Criteria:**
+
+1. **Missing Verification Comment** → ⚠️ **AUTOMATIC CONCERN**
+   - If NO verification comment exists, this is a red flag
+   - Mark as "Needs verification evidence" in your audit notes
+   - More likely to have bugs (untested code)
+
+2. **Weak Verification** → ⚠️ **CONCERN**
+   - Generic comment like "works" or "fixed"
+   - No details about what was tested
+   - No evidence (error counts, test results, screenshots)
+
+3. **Strong Verification** → ✅ **GOOD**
+   - Specific details: "TypeScript errors reduced from 250 to 187"
+   - Test evidence: "Build passes, feature tested in browser"
+   - Edge cases mentioned: "Tested with null, undefined, empty array"
+
+**If missing verification:**
+- Still audit the feature (don't automatically fail)
+- But be extra thorough - assume untested
+- If bugs found, mention "No verification was performed" in FIX issue
+- Consider creating process improvement issue if this is common
+
+### 4C. Review the Implementation
 
 Check the git history to see what was implemented:
 
@@ -254,6 +286,7 @@ Look for:
 - Error handling (edge cases covered)
 - Security concerns (input validation, SQL injection, XSS)
 - Performance issues (N+1 queries, unnecessary re-renders)
+- **Verification evidence** (did they actually test this?)
 
 ### 4C. Test Through the Browser (MANDATORY)
 

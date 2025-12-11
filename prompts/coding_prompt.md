@@ -499,6 +499,115 @@ jq '.legacy_done_without_audit = [NEW_COUNT]' .task_project.json > tmp.$$.json &
 
 This helps trigger audit sessions at the right time (when total awaiting >= 10).
 
+### STEP 11.6: VERIFY YOUR FIX (MANDATORY)
+
+**Before considering any issue complete, you MUST verify your changes work.**
+
+#### For TypeScript/Compilation Fixes:
+
+```bash
+# Run TypeScript compiler on the entire project
+npx tsc --noEmit
+
+# Or check specific file(s) you modified
+npx tsc --noEmit src/path/to/file.ts
+
+# Check for reduction in error count
+npx tsc --noEmit 2>&1 | grep -c "error TS"
+```
+
+#### For Feature Implementation:
+
+```bash
+# 1. Run build to catch compilation issues
+npm run build   # or: yarn build, pnpm build
+
+# 2. Run tests if they exist
+npm test        # or: yarn test, pnpm test
+
+# 3. Start dev server for manual verification
+npm run dev     # or: yarn dev, pnpm dev
+# Then use Puppeteer tools to test the feature
+```
+
+#### For Bug Fixes:
+
+```bash
+# 1. Reproduce the original bug first (verify it exists)
+# 2. Apply your fix
+# 3. Verify the bug no longer reproduces
+# 4. Check for regressions in related functionality
+```
+
+#### Verification Checklist:
+
+- [ ] Code compiles without errors (TypeScript/build)
+- [ ] No new errors introduced in other files
+- [ ] Manual testing confirms feature works
+- [ ] Edge cases tested (null, undefined, empty arrays, etc.)
+- [ ] Related features still work (no regressions)
+
+#### Recording Verification:
+
+**Always add a verification comment to the issue:**
+
+```bash
+# Example comment for TypeScript fix:
+"✅ Verified: TypeScript errors reduced from 250 to 187. 
+File src/composables/useErrorHandler.ts now compiles without errors.
+Checked that dependent files still compile correctly."
+
+# Example comment for feature:
+"✅ Verified: Feature working in browser.
+- Login flow completes successfully
+- Error messages display correctly
+- Form validation prevents invalid submissions
+Build passes, no new TypeScript errors introduced."
+
+# Example comment for bug fix:
+"✅ Verified: Bug fixed.
+- Original issue: Null pointer when bank is undefined
+- Fix: Added null check on line 51
+- Tested: Feature now handles null bank correctly
+- Regression check: Other bank-related features still work"
+```
+
+#### If Verification FAILS:
+
+**DO NOT close the issue. Instead:**
+
+1. Add comment explaining what failed:
+   ```
+   "⚠️ Verification failed: Build still shows 3 errors in dependent files.
+   Need to fix type exports in types.composables.ts first."
+   ```
+
+2. Fix the remaining issues
+
+3. Re-verify
+
+4. Only close after verification passes
+
+#### If Verification Tools Don't Exist:
+
+**At minimum, verify:**
+- File syntax is valid (no parse errors)
+- Imports resolve correctly  
+- Code follows project patterns
+- No obvious logic errors
+
+```bash
+# Quick syntax check
+node --check src/file.js
+
+# Check imports resolve
+npx tsc --noEmit --skipLibCheck src/file.ts
+```
+
+**CRITICAL**: Never mark an issue as DONE without adding a verification comment.
+The audit agent will check for verification and automatically fail features
+that lack verification evidence.
+
 ### STEP 12: END SESSION CLEANLY
 
 Before context fills up:
