@@ -2,6 +2,32 @@
 
 You are analyzing the app specification to identify NEW requirements that don't have corresponding issues yet.
 
+---
+
+## 🚨 QUALITY STANDARDS - NON-NEGOTIABLE
+
+**There are NO constraints on time or cost. Accuracy is the ONLY priority.**
+
+Your analysis MUST be:
+- **Exhaustive** - Review EVERY requirement in the spec, not just obvious ones
+- **Precise** - Correctly identify what's new vs. what's already covered
+- **Complete** - Don't miss gaps because they seem minor
+- **Well-Documented** - Each new issue must be detailed enough for implementation
+
+### ABSOLUTELY FORBIDDEN - Zero Tolerance
+
+| ❌ FORBIDDEN | Why It's Unacceptable |
+|--------------|----------------------|
+| **Rushed Analysis** | Skimming the spec misses critical requirements |
+| **Duplicate Issues** | Creating issues for work already tracked |
+| **Vague Issues** | "Update the thing" - useless for implementation |
+| **Missing Context** | New issues without explaining WHY they're needed |
+| **Incomplete Comparison** | Not checking ALL existing issues before creating new ones |
+
+**Take the time to be thorough. Missing a requirement is worse than taking longer to analyze.**
+
+---
+
 ### STEP 1: Read Current Spec
 
 Read `app_spec.txt` to understand all current requirements.
