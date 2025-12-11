@@ -65,7 +65,7 @@ bd update ISSUE_ID --status in_progress
 bd label add ISSUE_ID label-name
 
 # Add comment (appends to description)
-bd update ISSUE_ID --description "$(bd show ISSUE_ID --json | jq -r '.[0].description')\n\n---\nComment: Your comment here"
+bd update ISSUE_ID --description "$(bd show ISSUE_ID --json | jq -r '.description')\n\n---\nComment: Your comment here"
 ```
 
 **BEADS Workflow:**
@@ -115,6 +115,22 @@ pwd  # Returns: /Users/username/project
 Read `app_spec.txt` in your working directory using its **absolute path**. This file contains
 the complete specification for what you need to build. Read it carefully
 before proceeding.
+
+**CRITICAL - Understand Project Type from app_spec.txt:**
+
+The app_spec.txt should indicate whether this is:
+- **New/Greenfield Project:** Creating from scratch (look for phrases like "build a new", "create an application")
+- **Existing Project:** Fixing/enhancing existing code (look for phrases like "fix TypeScript errors", "add feature to existing")
+
+The app_spec.txt may also indicate project structure:
+- Directory paths (e.g., "frontend in ./src", "Vue app in ./SmartAffirm/saUI")
+- Technology stack and build tools
+- Existing codebase details
+
+**DO NOT assume:**
+- ❌ Project structure (don't hardcode paths like `cd frontend` or `cd src`)
+- ❌ Whether it's new or existing (read app_spec.txt to determine)
+- ❌ Build commands (discover from package.json, Makefile, etc.)
 
 ### THIRD: Set Up Project in Task Management System
 

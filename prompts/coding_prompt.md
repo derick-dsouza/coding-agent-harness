@@ -104,7 +104,7 @@ bd update ISSUE_ID --status closed
 bd label add ISSUE_ID awaiting-audit
 
 # Add comment (append to description)
-bd update ISSUE_ID --description "$(bd show ISSUE_ID --json | jq -r '.[0].description')\n\n---\nProgress: Feature completed"
+bd update ISSUE_ID --description "$(bd show ISSUE_ID --json | jq -r '.description')\n\n---\nProgress: Feature completed"
 ```
 
 **BEADS Workflow:**
@@ -146,6 +146,24 @@ cat .task_project.json
 # 5. Check recent git history
 git log --oneline -20
 ```
+
+**CRITICAL - Discover Project Structure from app_spec.txt:**
+
+The app_spec.txt may indicate the project structure. Look for:
+- Directory paths (e.g., "frontend in ./src", "backend in ./api")
+- Technology stack (React, Vue, Django, etc.)
+- Build commands (npm, cargo, go build, etc.)
+
+**DO NOT assume standard paths like:**
+- ❌ `cd SmartAffirm/saUI` (hardcoded assumption)
+- ❌ `cd frontend` (may not exist)
+- ❌ `cd src` (may be different)
+
+**Instead:**
+1. Read app_spec.txt to understand project layout
+2. Use `ls -la` to explore actual directory structure
+3. Use `find . -name "package.json"` or similar to locate specific files
+4. Infer paths from what you discover, never hardcode
 
 **Note:** For bash commands like `cat`, relative paths work fine. For the Read tool,
 you must use absolute paths: first run `pwd`, then construct `<pwd_result>/filename`.
