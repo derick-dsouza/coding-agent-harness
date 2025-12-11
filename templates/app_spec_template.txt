@@ -1,0 +1,368 @@
+<project_specification>
+  <project_name>[Your Project Name Here]</project_name>
+
+  <overview>
+    [Provide a comprehensive description of what you're building. Include:
+    - Core purpose and value proposition
+    - Target users or use cases
+    - Key differentiators or unique aspects
+    - High-level functionality overview
+    
+    Example: "Build a task management application that helps teams collaborate efficiently
+    with real-time updates, kanban boards, and integrated communication tools."]
+  </overview>
+
+  <technology_stack>
+    <frontend>
+      <framework>[e.g., React with Vite, Vue.js, Angular, Next.js]</framework>
+      <styling>[e.g., Tailwind CSS, styled-components, SCSS]</styling>
+      <state_management>[e.g., React Context, Redux, Zustand, Pinia]</state_management>
+      <routing>[e.g., React Router, Vue Router, Next.js routing]</routing>
+      <additional_libraries>
+        - [Library 1 and its purpose]
+        - [Library 2 and its purpose]
+      </additional_libraries>
+      <port>Only launch on port {frontend_port}</port>
+    </frontend>
+    
+    <backend>
+      <runtime>[e.g., Node.js with Express, Python Flask, Go, .NET]</runtime>
+      <database>[e.g., PostgreSQL, MongoDB, SQLite, MySQL]</database>
+      <authentication>[e.g., JWT, OAuth2, Passport.js, Auth0]</authentication>
+      <additional_services>
+        - [Service 1 and its purpose]
+        - [Service 2 and its purpose]
+      </additional_services>
+      <port>Only launch on port {backend_port}</port>
+    </backend>
+    
+    <communication>
+      <api>[e.g., RESTful, GraphQL, gRPC]</api>
+      <real_time>[e.g., WebSockets, Server-Sent Events, Polling]</real_time>
+      <external_apis>
+        - [External API 1 and integration purpose]
+        - [External API 2 and integration purpose]
+      </external_apis>
+    </communication>
+  </technology_stack>
+
+  <prerequisites>
+    <environment_setup>
+      - [Prerequisite 1: e.g., Node.js v18+]
+      - [Prerequisite 2: e.g., API keys from service X]
+      - [Prerequisite 3: e.g., Database setup instructions]
+      - [Environment variables needed with examples]
+    </environment_setup>
+  </prerequisites>
+
+  <core_features>
+    <feature_category_1>
+      <name>[Feature Category Name]</name>
+      <description>[Brief description of this feature group]</description>
+      <features>
+        - [Specific feature 1]
+        - [Specific feature 2]
+        - [Specific feature 3]
+        - [Specific feature 4]
+        - [Specific feature 5]
+      </features>
+    </feature_category_1>
+
+    <feature_category_2>
+      <name>[Feature Category Name]</name>
+      <description>[Brief description of this feature group]</description>
+      <features>
+        - [Specific feature 1]
+        - [Specific feature 2]
+        - [Specific feature 3]
+      </features>
+    </feature_category_2>
+
+    <!-- Add more feature categories as needed -->
+    <!-- Common categories include:
+         - user_management
+         - data_management
+         - search_and_filtering
+         - notifications
+         - settings_preferences
+         - collaboration
+         - reporting_analytics
+         - accessibility
+         - responsive_design
+         - security
+    -->
+  </core_features>
+
+  <database_schema>
+    <tables>
+      <table_name_1>
+        - [column_name] [data_type] [constraints]
+        - [column_name] [data_type] [constraints]
+        - [relationship to other tables]
+      </table_name_1>
+
+      <table_name_2>
+        - [column_name] [data_type] [constraints]
+        - [column_name] [data_type] [constraints]
+        - [relationship to other tables]
+      </table_name_2>
+
+      <!-- Add all necessary tables -->
+      <!-- Common patterns:
+           - id (primary key)
+           - created_at, updated_at (timestamps)
+           - user_id (foreign keys)
+           - JSON columns for flexible data
+           - Soft delete flags (is_deleted, deleted_at)
+      -->
+    </tables>
+  </database_schema>
+
+  <api_endpoints_summary>
+    <endpoint_group_1>
+      <name>[Endpoint Group Name, e.g., Authentication]</name>
+      <endpoints>
+        - [METHOD] /api/[resource] - [Description]
+        - [METHOD] /api/[resource]/:id - [Description]
+        - [METHOD] /api/[resource]/:id/[action] - [Description]
+      </endpoints>
+    </endpoint_group_1>
+
+    <endpoint_group_2>
+      <name>[Endpoint Group Name, e.g., User Management]</name>
+      <endpoints>
+        - [METHOD] /api/[resource] - [Description]
+        - [METHOD] /api/[resource]/:id - [Description]
+      </endpoints>
+    </endpoint_group_2>
+
+    <!-- Add all API endpoint groups -->
+    <!-- Standard REST patterns:
+         - GET /api/resource - List all
+         - POST /api/resource - Create new
+         - GET /api/resource/:id - Get one
+         - PUT /api/resource/:id - Update one
+         - DELETE /api/resource/:id - Delete one
+         - POST /api/resource/:id/action - Custom action
+    -->
+  </api_endpoints_summary>
+
+  <ui_layout>
+    <main_structure>
+      - [Overall layout description: e.g., header, sidebar, main content, footer]
+      - [Responsive behavior: mobile, tablet, desktop]
+      - [Navigation pattern]
+      - [Persistent UI elements]
+    </main_structure>
+
+    <component_hierarchy>
+      <top_level_component_1>
+        <name>[Component Name]</name>
+        <location>[Where it appears]</location>
+        <elements>
+          - [UI element 1]
+          - [UI element 2]
+          - [UI element 3]
+        </elements>
+      </top_level_component_1>
+
+      <top_level_component_2>
+        <name>[Component Name]</name>
+        <location>[Where it appears]</location>
+        <elements>
+          - [UI element 1]
+          - [UI element 2]
+        </elements>
+      </top_level_component_2>
+    </component_hierarchy>
+
+    <modals_overlays>
+      - [Modal 1: Purpose and trigger]
+      - [Modal 2: Purpose and trigger]
+      - [Overlay 1: Purpose and trigger]
+    </modals_overlays>
+  </ui_layout>
+
+  <design_system>
+    <color_palette>
+      - Primary: [Color and usage]
+      - Secondary: [Color and usage]
+      - Accent: [Color and usage]
+      - Background: [Light mode color] / [Dark mode color]
+      - Surface: [Light mode color] / [Dark mode color]
+      - Text: [Light mode color] / [Dark mode color]
+      - Borders: [Light mode color] / [Dark mode color]
+      - Error: [Color and usage]
+      - Warning: [Color and usage]
+      - Success: [Color and usage]
+      - Info: [Color and usage]
+    </color_palette>
+
+    <typography>
+      - Font family: [Primary font stack]
+      - Headings: [Size, weight, line-height specifications]
+      - Body text: [Size, weight, line-height specifications]
+      - Small text: [Size, weight, line-height specifications]
+      - Code/monospace: [Font stack and usage]
+    </typography>
+
+    <spacing>
+      - Base unit: [e.g., 4px, 8px]
+      - Scale: [e.g., 0.5x, 1x, 1.5x, 2x, 3x, 4x, 6x, 8x]
+      - Component padding: [Standard padding values]
+      - Section margins: [Standard margin values]
+    </spacing>
+
+    <components>
+      <buttons>
+        - Primary: [Style specifications]
+        - Secondary: [Style specifications]
+        - Tertiary: [Style specifications]
+        - Icon buttons: [Style specifications]
+        - States: default, hover, active, disabled, loading
+      </buttons>
+
+      <inputs>
+        - Text fields: [Style specifications]
+        - Textareas: [Style specifications]
+        - Dropdowns: [Style specifications]
+        - Checkboxes: [Style specifications]
+        - Radio buttons: [Style specifications]
+        - States: default, focus, error, disabled
+      </inputs>
+
+      <cards>
+        - Style: [Border, shadow, radius specifications]
+        - Padding: [Internal spacing]
+        - Hover states: [Interaction feedback]
+      </cards>
+
+      <navigation>
+        - Top nav: [Style specifications]
+        - Sidebar: [Style specifications]
+        - Breadcrumbs: [Style specifications]
+        - Tabs: [Style specifications]
+      </navigation>
+    </components>
+
+    <animations>
+      - Transition duration: [e.g., 150ms, 300ms, 500ms]
+      - Easing functions: [e.g., ease-in-out, cubic-bezier]
+      - Hover effects: [Description]
+      - Page transitions: [Description]
+      - Loading animations: [Description]
+      - Micro-interactions: [Description]
+    </animations>
+  </design_system>
+
+  <key_interactions>
+    <primary_user_flow>
+      <name>[Flow Name: e.g., User Registration]</name>
+      <steps>
+        1. [Step 1: User action and system response]
+        2. [Step 2: User action and system response]
+        3. [Step 3: User action and system response]
+        4. [Step 4: Final outcome]
+      </steps>
+    </primary_user_flow>
+
+    <secondary_user_flow>
+      <name>[Flow Name: e.g., Content Creation]</name>
+      <steps>
+        1. [Step 1]
+        2. [Step 2]
+        3. [Step 3]
+      </steps>
+    </secondary_user_flow>
+
+    <!-- Document all critical user flows -->
+  </key_interactions>
+
+  <implementation_steps>
+    <step number="1">
+      <title>[Step Title: e.g., Project Setup and Configuration]</title>
+      <tasks>
+        - [Task 1: Atomic, testable task]
+        - [Task 2: Atomic, testable task]
+        - [Task 3: Atomic, testable task]
+        - [Task 4: Atomic, testable task]
+      </tasks>
+    </step>
+
+    <step number="2">
+      <title>[Step Title: e.g., Build Core Backend API]</title>
+      <tasks>
+        - [Task 1]
+        - [Task 2]
+        - [Task 3]
+      </tasks>
+    </step>
+
+    <step number="3">
+      <title>[Step Title: e.g., Implement Frontend Components]</title>
+      <tasks>
+        - [Task 1]
+        - [Task 2]
+        - [Task 3]
+      </tasks>
+    </step>
+
+    <!-- Continue with implementation steps
+         Common progression:
+         1. Project setup
+         2. Database and backend foundation
+         3. Authentication
+         4. Core backend features
+         5. Frontend foundation
+         6. Core UI components
+         7. Advanced features
+         8. Settings and configuration
+         9. Polish and optimization
+         10. Testing and documentation
+    -->
+  </implementation_steps>
+
+  <success_criteria>
+    <functionality>
+      - [Functional requirement 1 that must work]
+      - [Functional requirement 2 that must work]
+      - [Functional requirement 3 that must work]
+      - [All CRUD operations functional]
+      - [Error handling comprehensive]
+    </functionality>
+
+    <user_experience>
+      - [UX requirement 1: e.g., Interface is intuitive]
+      - [UX requirement 2: e.g., Responsive on all devices]
+      - [UX requirement 3: e.g., Fast load times]
+      - [Smooth animations and transitions]
+      - [Clear feedback for all actions]
+    </user_experience>
+
+    <technical_quality>
+      - [Technical requirement 1: e.g., Clean code structure]
+      - [Technical requirement 2: e.g., Proper error handling]
+      - [Technical requirement 3: e.g., Security best practices]
+      - [Performance optimization]
+      - [Test coverage adequate]
+    </technical_quality>
+
+    <design_polish>
+      - [Design requirement 1: e.g., Consistent visual design]
+      - [Design requirement 2: e.g., Professional appearance]
+      - [Design requirement 3: e.g., Accessibility compliance]
+      - [Beautiful typography and spacing]
+      - [Dark mode fully implemented]
+    </design_polish>
+  </success_criteria>
+
+  <notes>
+    <!-- Use this section for:
+         - Important technical decisions and rationale
+         - Known constraints or limitations
+         - Future enhancement ideas
+         - References to design mockups or documentation
+         - Team communication notes
+    -->
+  </notes>
+</project_specification>
