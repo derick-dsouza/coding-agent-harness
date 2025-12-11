@@ -356,6 +356,7 @@ List issues from your project in `.task_project.json`:
 3. Which URGENT items unlock the most other work?
 4. Is there an IN_PROGRESS issue that should be finished first?
 5. Check **Files to modify** - avoid issues that touch files you just changed (reduce conflicts)
+6. **Multi-worker check:** Is another worker already working on this issue?
 
 Then select ONE issue that maximizes progress.
 
@@ -363,6 +364,23 @@ Then select ONE issue that maximizes progress.
 - Never start an issue if its dependencies are not DONE
 - If an issue lists "Depends on: AUTH-001, AUTH-002" - verify those are complete first
 - Issues with "Dependencies: None" can be worked on immediately
+
+**Multi-Worker Coordination (if running multiple instances):**
+
+If `.autocode-workers/` directory exists, other workers may be active:
+
+```bash
+# Check if an issue is already claimed by another worker
+ls .autocode-workers/claims/
+
+# If you see {issue-id}.claim files, those issues are being worked on
+# Skip them and pick a different TODO issue
+```
+
+Before claiming an issue:
+1. Check if `.autocode-workers/claims/{issue-id}.claim` exists
+2. If it exists, skip this issue - another worker is handling it
+3. If not, proceed to claim the issue (the harness handles atomic claiming)
 
 ### STEP 6: CLAIM THE ISSUE
 

@@ -4,6 +4,9 @@ generations/
 # Log files
 logs/
 
+# Multi-worker coordination files
+.autocode-workers/
+
 .env
 venv
 __pycache__

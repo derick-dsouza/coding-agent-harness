@@ -25,6 +25,7 @@ from linear_cache_helpers import (
     print_combined_stats,
     get_project_id_from_state
 )
+from worker_coordinator import WorkerCoordinator
 
 
 # Configuration
@@ -371,6 +372,7 @@ class TaskInitializationHandler:
 # Global handlers for the session
 rate_limit_handler = UnifiedRateLimitHandler()
 task_init_handler = TaskInitializationHandler()
+worker_coordinator: Optional[WorkerCoordinator] = None
 
 
 def has_work_to_do(project_dir: Path, is_first_run: bool) -> bool:
@@ -631,6 +633,14 @@ async def run_autonomous_agent(
         print("Max iterations: Unlimited (will run until completion)")
     print()
 
+    # Initialize worker coordinator for multi-instance support
+    global worker_coordinator
+    worker_coordinator = WorkerCoordinator(project_dir)
+    worker_coordinator.register()
+    
+    # Start heartbeat background task
+    heartbeat_task = asyncio.create_task(worker_coordinator.heartbeat_loop())
+
     # Check if this is a fresh start or continuation
     # We use .task_project.json as the marker for initialization
     is_first_run = not is_task_initialized(project_dir)
@@ -797,6 +807,14 @@ async def run_autonomous_agent(
         if max_iterations is None or iteration < max_iterations:
             print("\nPreparing next session...\n")
             await asyncio.sleep(1)
+
+    # Clean up worker coordinator
+    heartbeat_task.cancel()
+    try:
+        await heartbeat_task
+    except asyncio.CancelledError:
+        pass
+    worker_coordinator.cleanup()
 
     # Final summary
     print("\n" + "=" * 70)
