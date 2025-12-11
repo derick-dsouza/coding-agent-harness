@@ -183,14 +183,20 @@ list_issues:
 
 ## STEP 3: START DEVELOPMENT SERVERS
 
-If `init.sh` exists, run it to start the application:
+**Check if the application needs to be started for testing.**
+
+If `init.sh` exists (greenfield projects), use it:
 
 ```bash
 chmod +x init.sh
 ./init.sh
 ```
 
-Otherwise, start servers manually based on the tech stack in `app_spec.txt`.
+For existing projects:
+- Check if servers are already running (check for listening ports)
+- Look for start scripts: npm run dev, make start, docker-compose up, etc.
+- Check package.json, Makefile, or README for start commands
+- Start only what's needed for testing
 
 **CRITICAL:** The application must be running for browser-based testing.
 

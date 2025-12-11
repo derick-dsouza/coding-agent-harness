@@ -280,13 +280,19 @@ contains the `project_id` and `team_id` you should use for all queries.
 
 ### STEP 3: START SERVERS (IF NOT RUNNING)
 
-If `init.sh` exists, run it:
+**Check if servers/services need to be started for this task.**
+
+If `init.sh` exists (greenfield projects), you can use it:
 ```bash
 chmod +x init.sh
 ./init.sh
 ```
 
-Otherwise, start servers manually and document the process.
+For existing projects without init.sh:
+- Check if servers are already running (check for listening ports)
+- Look for existing scripts: npm run dev, make start, docker-compose up, etc.
+- Check package.json, Makefile, or README for start commands
+- Only start services if needed for your current task
 
 ### STEP 4: VERIFICATION TEST (CRITICAL!)
 

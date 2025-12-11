@@ -117,7 +117,8 @@ def print_progress_summary(project_dir: Path) -> None:
     audits_completed = state.get("audits_completed", 0)
     features_awaiting = state.get("features_awaiting_audit", 0)
     legacy_done = state.get("legacy_done_without_audit", 0)
-    adapter_type = state.get("adapter_type", "linear")  # Default to linear for backward compat
+    # Support both "adapter" (BEADS) and "adapter_type" (Linear/GitHub) for backward compat
+    adapter_type = state.get("adapter_type") or state.get("adapter", "linear")
 
     print(f"\nTask Management Project Status ({adapter_type}):")
     print(f"  Total issues created: {total}")

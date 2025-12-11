@@ -279,9 +279,29 @@ This META issue will be used by all future agents to:
 - Write session summaries before ending
 - Track overall project milestones
 
-### NEXT TASK: Create init.sh
+### NEXT TASK: Determine Project Type
 
-Create a script called `init.sh` that future agents can use to quickly
+**CRITICAL:** Check if this is a greenfield (new) or existing project:
+
+**Indicators of GREENFIELD project:**
+- app_spec.txt contains phrases like: "Create a new", "Build a", "Implement from scratch"
+- app_spec.txt has section headers like "Project Setup", "Initial Structure", "Technology Stack Selection"
+- No existing source code in the directory (no src/, app/, components/, etc.)
+- No package.json, requirements.txt, or other dependency files
+
+**Indicators of EXISTING project:**
+- app_spec.txt contains: "Fix", "Refactor", "Update", "Migrate", "Add feature to"
+- Existing codebase present (src/, components/, modules/, etc.)
+- Existing dependency files (package.json, requirements.txt, etc.)
+- Git repository already initialized
+
+**Default assumption: EXISTING PROJECT** (if unclear, assume existing)
+
+### NEXT TASK: Setup Script (GREENFIELD ONLY)
+
+**Only create init.sh if this is a GREENFIELD project.**
+
+For GREENFIELD projects, create a script called `init.sh` that future agents can use to quickly
 set up and run the development environment. The script should:
 
 1. Install any required dependencies
@@ -290,7 +310,12 @@ set up and run the development environment. The script should:
 
 Base the script on the technology stack specified in `app_spec.txt`.
 
-### NEXT TASK: Initialize Git
+**For EXISTING projects:** Skip init.sh creation. Assume the project already has setup scripts
+or documentation. Focus on implementing the features/fixes specified in app_spec.txt.
+
+### NEXT TASK: Initialize Git (GREENFIELD ONLY)
+
+**Only for GREENFIELD projects:**
 
 Create a git repository and make your first commit with:
 - init.sh (environment setup script)
@@ -298,6 +323,8 @@ Create a git repository and make your first commit with:
 - Any initial project structure files
 
 Commit message: "Initial setup: project structure and init script"
+
+**For EXISTING projects:** Skip this - git is already initialized.
 
 ### NEXT TASK: Create Project Structure
 
