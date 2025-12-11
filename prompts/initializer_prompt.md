@@ -201,7 +201,7 @@ should have its own trackable issue. Missing issues means missing functionality.
 **Divide and Conquer Approach:**
 
 Break issue creation into logical batches to stay organized:
-1. **Infrastructure issues:** Database, auth, core APIs, basic setup
+1. **Infrastructure issues:** Database, auth, core APIs, basic setup (these have no dependencies)
 2. **Primary features:** Main user-facing functionality (this will likely be the largest batch)
 3. **Secondary features:** Enhancements, integrations, edge cases
 4. **Polish:** UI refinement, accessibility, performance
@@ -209,6 +209,13 @@ Break issue creation into logical batches to stay organized:
 Create one batch (10-20 issues), verify issues appear correctly, then proceed to the next.
 This prevents overwhelming the session and allows course-correction if needed.
 Continue until every requirement in the spec has a corresponding issue.
+
+**Dependency Ordering:**
+- Infrastructure issues should have **no dependencies** (they're foundational)
+- Primary features depend on infrastructure being complete
+- Use the "Dependencies" field in issue descriptions to make this explicit
+- Example: "Auth - Login page" depends on "Auth - User database schema"
+- This helps coding agents work on issues in the correct order
 
 **For each feature, create an issue with:**
 
@@ -228,6 +235,11 @@ priority: URGENT/HIGH/MEDIUM/LOW based on importance
 ## Category
 [functional OR style]
 
+## Complexity & Scope
+- **Estimated time:** [15/30/60/120 minutes]
+- **Files to modify:** [List specific files this issue will touch]
+- **Dependencies:** [List issue IDs that must be completed first, or "None"]
+
 ## Test Steps
 1. Navigate to [page/location]
 2. [Specific action to perform]
@@ -240,6 +252,12 @@ priority: URGENT/HIGH/MEDIUM/LOW based on importance
 - [ ] [Specific criterion 2]
 - [ ] [Specific criterion 3]
 ```
+
+**Atomic Task Principles:**
+- Each issue should be completable in **under 2 hours** (ideally 30-60 minutes)
+- If a feature is large, split it into multiple issues with clear dependencies
+- Each issue should modify **as few files as possible** to avoid conflicts
+- Every issue must have a **testable outcome** - something you can verify works
 
 **Requirements for Issues:**
 - Create as many issues as needed to comprehensively cover all features in the spec

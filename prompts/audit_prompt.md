@@ -289,6 +289,9 @@ git log --all --grep="[feature name or issue ID]" --oneline
 
 # Review the actual changes
 git show [commit-hash]
+
+# Check file sizes for any files over 250 lines
+wc -l [modified files]
 ```
 
 Look for:
@@ -297,6 +300,9 @@ Look for:
 - Security concerns (input validation, SQL injection, XSS)
 - Performance issues (N+1 queries, unnecessary re-renders)
 - **Verification evidence** (did they actually test this?)
+- **Scope creep:** Did they modify files not listed in the issue's "Files to modify"?
+- **File bloat:** Are any modified files over 250 lines? Flag for refactoring.
+- **Time vs estimate:** If issue had an estimate, did implementation seem proportional?
 
 ### 4C. Test Through the Browser (MANDATORY)
 
@@ -602,6 +608,35 @@ Look across all features audited:
 - Are there inconsistent patterns (e.g., error handling done differently)?
 - Are there common security mistakes being repeated?
 - Is there a lack of input validation across features?
+
+**If you find files over 250 lines:**
+
+Create a [REFACTOR] issue for file splitting:
+```
+Title: "[REFACTOR] Split [filename] into smaller modules"
+
+Description:
+"""
+## File Size Issue Found During Audit
+
+**File:** [path/to/file]
+**Current size:** [X] lines (threshold: 250)
+**Found in:** [Feature issue ID]
+
+### Recommended Split
+- [module1.ts]: [responsibility - ~80 lines]
+- [module2.ts]: [responsibility - ~60 lines]
+- [module3.ts]: [responsibility - ~70 lines]
+
+### Why Split?
+- Files over 250 lines are harder to maintain
+- Smaller modules are easier to test
+- Reduces merge conflicts when multiple issues touch same area
+"""
+
+Priority: MEDIUM
+Labels: ["refactor", "audit-finding"]
+```
 
 **If you find systemic issues:**
 

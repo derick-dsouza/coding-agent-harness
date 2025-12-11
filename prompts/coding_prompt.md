@@ -352,11 +352,17 @@ List issues from your project in `.task_project.json`:
 
 **Think step by step to select the best issue:**
 1. What is the current app state? (working? broken? missing foundation?)
-2. Are there any blockers or dependencies between issues?
+2. Check issue descriptions for **Dependencies** - are all dependencies marked DONE?
 3. Which URGENT items unlock the most other work?
 4. Is there an IN_PROGRESS issue that should be finished first?
+5. Check **Files to modify** - avoid issues that touch files you just changed (reduce conflicts)
 
 Then select ONE issue that maximizes progress.
+
+**Dependency Rules:**
+- Never start an issue if its dependencies are not DONE
+- If an issue lists "Depends on: AUTH-001, AUTH-002" - verify those are complete first
+- Issues with "Dependencies: None" can be worked on immediately
 
 ### STEP 6: CLAIM THE ISSUE
 
@@ -367,12 +373,24 @@ This signals to any other agents (or humans watching) that this issue is being w
 
 ### STEP 7: IMPLEMENT THE FEATURE
 
-Read the issue description for test steps and implement accordingly:
+Read the issue description carefully. It contains:
+- **Feature Description:** What to build and why
+- **Estimated time:** How long this should take (if over time, you may be overcomplicating)
+- **Files to modify:** Which files you should be touching
+- **Test Steps:** Exact steps to verify the feature works
+- **Acceptance Criteria:** Checklist of what "done" means
 
-1. Write the code (frontend and/or backend as needed)
-2. Test manually using browser automation (see Step 8)
-3. Fix any issues discovered
-4. Verify the feature works end-to-end
+**Implementation approach:**
+1. Focus only on the files listed in "Files to modify" - avoid scope creep
+2. Write the minimal code needed to satisfy acceptance criteria
+3. Test manually using browser automation (see Step 8)
+4. Fix any issues discovered
+5. Verify the feature works end-to-end
+
+**If the issue takes longer than estimated:**
+- You may be overcomplicating the solution
+- Check if you're touching files not listed in the issue
+- Consider if a simpler approach exists
 
 ### STEP 7.5: SELF-REVIEW BEFORE VERIFICATION
 
@@ -381,6 +399,8 @@ Read the issue description for test steps and implement accordingly:
 - Are there any security concerns (XSS, injection, exposed secrets)?
 - Is error handling complete and user-friendly?
 - Would a senior developer approve this code?
+- **File size check:** Are any files over 250 lines? Consider splitting into modules.
+- **Scope check:** Did you only modify files listed in the issue? If not, why?
 
 Address any concerns before proceeding to verification. This self-review
 catches issues early and reduces rework from audit findings.
