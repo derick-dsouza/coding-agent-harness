@@ -104,7 +104,15 @@ bd update ISSUE_ID --description "$(bd show ISSUE_ID --json | jq -r .description
 
 ### SECOND: Read the Project Specification
 
-Read `app_spec.txt` in your working directory. This file contains
+**IMPORTANT:** Use `pwd` first to get your absolute working directory path, then construct the full absolute file path.
+
+Example:
+```bash
+pwd  # Returns: /Users/username/project
+# Then read: /Users/username/project/app_spec.txt
+```
+
+Read `app_spec.txt` in your working directory using its **absolute path**. This file contains
 the complete specification for what you need to build. Read it carefully
 before proceeding.
 

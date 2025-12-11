@@ -126,22 +126,29 @@ bd update ISSUE_ID --description "$(bd show ISSUE_ID --json | jq -r .description
 
 Start by orienting yourself:
 
+**IMPORTANT:** When using the Read tool, always construct absolute paths from `pwd`.
+
 ```bash
-# 1. See your working directory
+# 1. See your working directory (use this path for Read tool)
 pwd
 
 # 2. List files to understand project structure
 ls -la
 
 # 3. Read the project specification to understand what you're building
+# Use Read tool with: <absolute_path_from_pwd>/app_spec.txt
 cat app_spec.txt
 
 # 4. Read the task project state
+# Use Read tool with: <absolute_path_from_pwd>/.task_project.json
 cat .task_project.json
 
 # 5. Check recent git history
 git log --oneline -20
 ```
+
+**Note:** For bash commands like `cat`, relative paths work fine. For the Read tool,
+you must use absolute paths: first run `pwd`, then construct `<pwd_result>/filename`.
 
 Understanding the `app_spec.txt` is critical - it contains the full requirements
 for the application you're building.
