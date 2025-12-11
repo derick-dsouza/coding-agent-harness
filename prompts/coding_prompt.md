@@ -107,7 +107,7 @@ bd update ISSUE_ID --status closed
 bd label add ISSUE_ID awaiting-audit
 
 # Add comment (append to description)
-bd update ISSUE_ID --description "$(bd show ISSUE_ID --json | jq -r '.description')\n\n---\nProgress: Feature completed"
+bd update ISSUE_ID --description "$(bd show ISSUE_ID --json | jq -r '.[0].description')\n\n---\nProgress: Feature completed"
 ```
 
 **BEADS Workflow:**
@@ -122,6 +122,23 @@ bd update ISSUE_ID --description "$(bd show ISSUE_ID --json | jq -r '.descriptio
 - **Git-backed** - All changes tracked in .beads/ directory
 - **Fast** - No network calls
 - **Simple** - Direct bash commands
+
+**Multi-Worker BEADS Coordination:**
+
+When multiple workers are running in the same project, BEADS updates require coordination:
+
+1. **Issue Claiming**: Before starting work, check `.autocode-workers/claims/` to ensure no other worker has claimed the issue
+2. **Status Updates**: Only update status for issues YOU have claimed
+3. **Atomic Operations**: Complete your BEADS update immediately after making changes - don't leave partial state
+4. **Conflict Resolution**: If you see `.beads/` changes from another worker in git status, pull/merge before your updates
+
+```bash
+# Check if another worker is working on an issue
+ls .autocode-workers/claims/ 2>/dev/null | grep -q "ISSUE_ID" && echo "CLAIMED" || echo "AVAILABLE"
+
+# Always check git status before BEADS updates
+git status .beads/
+```
 
 ---
 

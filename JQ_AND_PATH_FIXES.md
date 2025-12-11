@@ -10,17 +10,19 @@ jq: error (at <stdin>:12): Cannot index array with string "description"
 ```
 
 **Root Cause:**
-The prompts were using `jq -r '.[0].description'` to parse output from `bd show ISSUE_ID --json`, but `bd show` returns a single object, not an array.
+The prompts were using `jq -r '.description'` to parse output from `bd show ISSUE_ID --json`, but `bd show` actually returns an **array** (even for a single issue), not a single object.
 
-**Fix Applied:**
+**Fix Applied (Updated 2025-12-11):**
 Changed all occurrences in prompts from:
-```bash
-bd show ISSUE_ID --json | jq -r '.[0].description'
-```
-To:
 ```bash
 bd show ISSUE_ID --json | jq -r '.description'
 ```
+To:
+```bash
+bd show ISSUE_ID --json | jq -r '.[0].description'
+```
+
+**Note:** `bd show` and `bd list` both return arrays. Always use `.[0]` to access the first element.
 
 **Files Modified:**
 - `prompts/coding_prompt.md` (line 107)
