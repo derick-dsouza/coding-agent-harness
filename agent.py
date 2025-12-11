@@ -31,7 +31,7 @@ from linear_cache_helpers import (
 AUTO_CONTINUE_DELAY_SECONDS = 3
 
 # Audit system configuration
-AUDIT_INTERVAL = 10  # Trigger audit every 10 completed features
+AUDIT_INTERVAL = 5  # Trigger audit every 5 completed features (was 10)
 AUDIT_LABEL_AWAITING = "awaiting-audit"
 AUDIT_LABEL_AUDITED = "audited"
 
@@ -381,6 +381,8 @@ def has_work_to_do(project_dir: Path, is_first_run: bool) -> bool:
         True if there's work to do, False if project is complete
     """
     from progress import load_task_project_state
+    import subprocess
+    import json
     
     # First run always has work (initialization)
     if is_first_run:
@@ -394,7 +396,39 @@ def has_work_to_do(project_dir: Path, is_first_run: bool) -> bool:
     if should_run_audit(project_dir):
         return True
     
-    # Check if there are any in-progress or todo issues
+    # For BEADS adapter, query actual issue counts from bd CLI
+    adapter_type = state.get("adapter", "linear")
+    
+    if adapter_type == "beads":
+        try:
+            # Query BEADS for open issue count
+            result = subprocess.run(
+                ["bd", "count", "--status", "open", "--json"],
+                cwd=project_dir,
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            count_data = json.loads(result.stdout)
+            open_count = count_data.get("count", 0)
+            
+            # Also check for in_progress
+            result = subprocess.run(
+                ["bd", "count", "--status", "in_progress", "--json"],
+                cwd=project_dir,
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            count_data = json.loads(result.stdout)
+            in_progress = count_data.get("count", 0)
+            
+            return (open_count + in_progress) > 0
+        except (subprocess.CalledProcessError, json.JSONDecodeError, FileNotFoundError):
+            # Fall back to state file counts if bd command fails
+            pass
+    
+    # For Linear/GitHub or fallback: use state file counts
     in_progress = state.get("in_progress", 0)
     todo = state.get("todo", 0)
     open_count = state.get("open", 0)  # BEADS uses 'open' instead of 'todo'
