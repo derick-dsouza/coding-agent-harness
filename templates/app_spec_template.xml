@@ -1,0 +1,1120 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Application Specification Template
+  
+  This template provides a structured format for defining software project requirements.
+  AI agents can parse this format efficiently due to its hierarchical XML structure.
+  
+  USAGE INSTRUCTIONS:
+  1. Replace all {{PLACEHOLDER}} values with your project details
+  2. Remove sections that don't apply to your project
+  3. Add custom sections as needed following the same structure
+  4. Be specific and detailed - more detail leads to better implementation
+  5. Use concrete examples where possible
+  
+  PRINCIPLES:
+  - Explicit over implicit: State requirements clearly
+  - Hierarchical structure: Group related features together
+  - Implementation-focused: Include technical details and constraints
+  - Success-oriented: Define clear success criteria
+  - Iterative-friendly: Organize by implementation phases
+-->
+
+<project_specification>
+  
+  <!-- ============================================================ -->
+  <!-- PROJECT IDENTITY -->
+  <!-- ============================================================ -->
+  
+  <project_name>{{Your Project Name}}</project_name>
+  
+  <overview>
+    {{Provide a comprehensive 2-4 paragraph description of what you're building.
+    Include:
+    - Core purpose and value proposition
+    - Target users or use cases
+    - Key differentiators or unique features
+    - Overall user experience goals
+    
+    Example:
+    "Build a task management application that helps remote teams coordinate work
+    asynchronously. The app should provide visual kanban boards, time tracking,
+    and team analytics with a focus on reducing meeting overhead. The UI should
+    be clean and modern, optimized for both desktop and mobile workflows."
+    }}
+  </overview>
+  
+  
+  <!-- ============================================================ -->
+  <!-- TECHNOLOGY STACK -->
+  <!-- Define all technical components and constraints -->
+  <!-- ============================================================ -->
+  
+  <technology_stack>
+    
+    <api_authentication>
+      {{Specify authentication requirements and API keys
+      
+      Example:
+      - Use OAuth 2.0 for user authentication
+      - Read API keys from environment variables (STRIPE_SECRET_KEY)
+      - JWT tokens for session management
+      - Never hardcode credentials
+      }}
+    </api_authentication>
+    
+    <frontend>
+      <framework>{{React/Vue/Angular/Svelte/etc with build tool}}</framework>
+      <styling>{{Tailwind CSS/CSS Modules/Styled Components/SCSS}}</styling>
+      <state_management>{{Redux/MobX/Zustand/Context API}}</state_management>
+      <routing>{{React Router/Vue Router/etc}}</routing>
+      <ui_libraries>{{Material-UI/Ant Design/Chakra UI/Shadcn/etc}}</ui_libraries>
+      <additional_tools>
+        {{List any additional frontend libraries:
+        - Chart libraries (Chart.js, Recharts)
+        - Form handling (React Hook Form, Formik)
+        - Date handling (date-fns, moment)
+        - Rich text editors
+        - File upload libraries
+        }}
+      </additional_tools>
+      <port>{{Specify port number, e.g., 3000, 5173}}</port>
+    </frontend>
+    
+    <backend>
+      <runtime>{{Node.js/Python/Go/Java/etc}}</runtime>
+      <framework>{{Express/FastAPI/Django/Spring Boot/etc}}</framework>
+      <database>{{PostgreSQL/MySQL/SQLite/MongoDB/etc}}</database>
+      <orm>{{Prisma/TypeORM/Sequelize/SQLAlchemy/etc}}</orm>
+      <api_integrations>
+        {{List third-party APIs to integrate:
+        - Payment processing (Stripe, PayPal)
+        - Email services (SendGrid, Mailgun)
+        - Cloud storage (AWS S3, Cloudinary)
+        - AI services (OpenAI, Anthropic Claude)
+        - Analytics (Google Analytics, Mixpanel)
+        }}
+      </api_integrations>
+      <authentication>{{JWT/OAuth/Passport/Auth0/etc}}</authentication>
+      <port>{{Specify port number, e.g., 3001, 8000}}</port>
+    </backend>
+    
+    <communication>
+      <api_style>{{RESTful/GraphQL/gRPC}}</api_style>
+      <real_time>{{WebSockets/SSE/Polling if needed}}</real_time>
+      <data_format>{{JSON/Protocol Buffers/etc}}</data_format>
+    </communication>
+    
+    <infrastructure>
+      <deployment>{{Docker/Kubernetes/Serverless/Traditional hosting}}</deployment>
+      <ci_cd>{{GitHub Actions/GitLab CI/Jenkins/CircleCI}}</ci_cd>
+      <monitoring>{{Sentry/DataDog/New Relic/etc}}</monitoring>
+      <logging>{{Winston/Pino/Morgan/etc}}</logging>
+    </infrastructure>
+    
+  </technology_stack>
+  
+  
+  <!-- ============================================================ -->
+  <!-- PREREQUISITES & ENVIRONMENT SETUP -->
+  <!-- ============================================================ -->
+  
+  <prerequisites>
+    <environment_setup>
+      {{List all setup requirements:
+      
+      - Environment variables needed (with descriptions)
+      - Package managers (npm/pnpm/yarn, pip/poetry)
+      - Required global dependencies
+      - Database setup and migrations
+      - External service accounts needed
+      - Local development ports to keep free
+      - Any seed data or fixtures needed
+      
+      Example:
+      - Create .env file with DATABASE_URL, JWT_SECRET, STRIPE_KEY
+      - Install pnpm globally: npm install -g pnpm
+      - Run database migrations: npm run db:migrate
+      - Frontend runs on port 3000, backend on port 3001
+      }}
+    </environment_setup>
+    
+    <system_requirements>
+      {{Specify minimum system requirements:
+      - Node.js version
+      - Python version
+      - Database version
+      - RAM/disk space
+      - OS compatibility
+      }}
+    </system_requirements>
+  </prerequisites>
+  
+  
+  <!-- ============================================================ -->
+  <!-- CORE FEATURES -->
+  <!-- Organize features by functional area with detailed specs -->
+  <!-- ============================================================ -->
+  
+  <core_features>
+    
+    <!-- Template for each feature group -->
+    <feature_group_1>
+      <name>{{Feature Group Name}}</name>
+      <description>{{Brief description of this feature group}}</description>
+      <requirements>
+        {{List specific requirements using bullet points:
+        
+        - Requirement 1 with details
+        - Requirement 2 with details
+        - User interaction flows
+        - Edge cases to handle
+        - Performance expectations
+        - Validation rules
+        
+        Be as specific as possible. Include:
+        - UI/UX details (button placement, modal behavior)
+        - Business logic (calculations, rules, workflows)
+        - Data requirements (what to store, what to display)
+        - Error handling (what happens when things fail)
+        - Permissions/access control
+        
+        Example for a "User Profile" feature:
+        - Display user avatar, name, email, bio
+        - Edit button opens inline editing mode
+        - Save validates email format and required fields
+        - Show error messages below invalid fields
+        - Auto-save after 3 seconds of no typing
+        - Upload avatar with 5MB size limit, JPG/PNG only
+        - Show loading spinner during save
+        - Success toast notification on completion
+        - Only user can edit their own profile
+        }}
+      </requirements>
+    </feature_group_1>
+    
+    <feature_group_2>
+      <name>{{Another Feature Group}}</name>
+      <description>{{Description}}</description>
+      <requirements>
+        {{Continue with more feature groups...}}
+      </requirements>
+    </feature_group_2>
+    
+    <!-- Common feature groups to consider:
+    
+    <authentication_authorization>
+      User login, registration, password reset, roles, permissions
+    </authentication_authorization>
+    
+    <user_management>
+      Profile editing, preferences, account settings, delete account
+    </user_management>
+    
+    <core_functionality>
+      The main features that define your app
+    </core_functionality>
+    
+    <data_management>
+      CRUD operations for your primary entities
+    </data_management>
+    
+    <search_filtering>
+      Search functionality, filters, sorting, pagination
+    </search_filtering>
+    
+    <notifications>
+      In-app notifications, email notifications, push notifications
+    </notifications>
+    
+    <collaboration>
+      Sharing, commenting, team features, permissions
+    </collaboration>
+    
+    <analytics_reporting>
+      Dashboards, charts, data visualization, exports
+    </analytics_reporting>
+    
+    <settings_preferences>
+      App configuration, user preferences, theme switching
+    </settings_preferences>
+    
+    <integrations>
+      Third-party service integrations
+    </integrations>
+    
+    <responsive_design>
+      Mobile adaptations, touch gestures, progressive web app
+    </responsive_design>
+    
+    <accessibility>
+      Keyboard navigation, screen reader support, ARIA labels
+    </accessibility>
+    
+    <performance>
+      Caching, lazy loading, optimization strategies
+    </performance>
+    
+    <security>
+      Data protection, input validation, CSRF protection
+    </security>
+    -->
+    
+  </core_features>
+  
+  
+  <!-- ============================================================ -->
+  <!-- DATABASE SCHEMA -->
+  <!-- Define all tables/collections with fields and relationships -->
+  <!-- ============================================================ -->
+  
+  <database_schema>
+    <tables>
+      
+      <table_1>
+        <name>{{table_name}}</name>
+        <description>{{What this table stores}}</description>
+        <fields>
+          {{List all fields with types and constraints:
+          
+          - id: UUID/INTEGER PRIMARY KEY
+          - field_name: TYPE NOT NULL
+          - foreign_key: INTEGER REFERENCES other_table(id)
+          - created_at: TIMESTAMP DEFAULT NOW()
+          - updated_at: TIMESTAMP
+          
+          Include:
+          - Field names (use snake_case for SQL databases)
+          - Data types (INTEGER, VARCHAR(255), TEXT, BOOLEAN, TIMESTAMP, JSON)
+          - Constraints (NOT NULL, UNIQUE, DEFAULT values)
+          - Foreign key relationships
+          - Indexes for performance
+          
+          Example:
+          - id: INTEGER PRIMARY KEY AUTOINCREMENT
+          - user_id: INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE
+          - email: VARCHAR(255) UNIQUE NOT NULL
+          - status: VARCHAR(50) DEFAULT 'active'
+          - metadata: JSON
+          - created_at: TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          - updated_at: TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          - INDEX idx_user_email ON (user_id, email)
+          }}
+        </fields>
+        <relationships>
+          {{Describe relationships:
+          - Has many: One user has many posts
+          - Belongs to: Each post belongs to one user
+          - Many to many: Users and roles (through user_roles junction table)
+          }}
+        </relationships>
+      </table_1>
+      
+      <table_2>
+        {{Repeat for each table...}}
+      </table_2>
+      
+      <!-- Common tables to consider:
+      
+      <users>
+        Authentication, profile, preferences
+      </users>
+      
+      <sessions>
+        Login sessions, tokens
+      </sessions>
+      
+      <audit_logs>
+        Track important actions
+      </audit_logs>
+      
+      <files_uploads>
+        File metadata and locations
+      </files_uploads>
+      
+      <notifications>
+        User notifications
+      </notifications>
+      
+      <settings>
+        Application and user settings
+      </settings>
+      -->
+      
+    </tables>
+    
+    <migrations>
+      {{Describe migration strategy:
+      - Initial schema creation
+      - Version control approach
+      - Rollback strategy
+      }}
+    </migrations>
+  </database_schema>
+  
+  
+  <!-- ============================================================ -->
+  <!-- API ENDPOINTS -->
+  <!-- Document all API routes with methods and purposes -->
+  <!-- ============================================================ -->
+  
+  <api_endpoints>
+    
+    <endpoint_group_1>
+      <name>{{Resource Name (e.g., Authentication)}}</name>
+      <base_path>{{/api/auth}}</base_path>
+      <endpoints>
+        {{For each endpoint, specify:
+        
+        - METHOD /path - Description
+        - Request body/params
+        - Response format
+        - Status codes
+        - Authentication required
+        
+        Example:
+        - POST /api/auth/login - User login
+          Request: { email: string, password: string }
+          Response: { token: string, user: User }
+          Status: 200 OK, 401 Unauthorized
+          Auth: None
+        
+        - GET /api/auth/me - Get current user
+          Request: None
+          Response: { user: User }
+          Status: 200 OK, 401 Unauthorized
+          Auth: Bearer token required
+        
+        - POST /api/auth/logout - User logout
+          Request: None
+          Response: { message: string }
+          Status: 200 OK
+          Auth: Bearer token required
+        }}
+      </endpoints>
+    </endpoint_group_1>
+    
+    <endpoint_group_2>
+      {{Repeat for each resource...}}
+    </endpoint_group_2>
+    
+    <!-- Common endpoint groups:
+    
+    <authentication>
+      /api/auth/login, /logout, /register, /reset-password
+    </authentication>
+    
+    <users>
+      CRUD operations for user management
+    </users>
+    
+    <primary_resources>
+      CRUD for your main entities
+    </primary_resources>
+    
+    <search>
+      /api/search endpoints
+    </search>
+    
+    <file_uploads>
+      /api/upload endpoints
+    </file_uploads>
+    
+    <webhooks>
+      Endpoints to receive webhook notifications
+    </webhooks>
+    -->
+    
+  </api_endpoints>
+  
+  
+  <!-- ============================================================ -->
+  <!-- UI/UX DESIGN SPECIFICATIONS -->
+  <!-- ============================================================ -->
+  
+  <ui_layout>
+    
+    <main_structure>
+      {{Describe the overall layout:
+      - Header/navigation structure
+      - Main content area organization
+      - Sidebar(s) if any
+      - Footer content
+      - Responsive breakpoints
+      - Layout behavior on different screen sizes
+      
+      Example:
+      - Fixed header with logo, navigation, and user menu
+      - Left sidebar (250px) with collapsible sections
+      - Main content area with max-width 1200px, centered
+      - Footer with links and copyright
+      - Mobile: Hamburger menu, single column layout
+      - Tablet: Two column layout
+      - Desktop: Three column layout with sidebars
+      }}
+    </main_structure>
+    
+    <navigation>
+      {{Define navigation structure:
+      - Top-level nav items
+      - Sub-navigation
+      - Mobile navigation pattern
+      - Active state indicators
+      - Breadcrumbs if applicable
+      }}
+    </navigation>
+    
+    <key_screens>
+      <screen_1>
+        <name>{{Screen Name (e.g., Dashboard)}}</name>
+        <description>{{What this screen shows}}</description>
+        <layout>
+          {{Describe the screen layout:
+          - Component arrangement
+          - Grid/flexbox structure
+          - Interactive elements
+          - Data display format
+          
+          Example for Dashboard:
+          - Top row: Summary statistics (4 cards, equal width)
+          - Middle: Chart showing trends (full width)
+          - Bottom: Recent activity table (full width, paginated)
+          - Right sidebar: Quick actions panel
+          }}
+        </layout>
+        <components>
+          {{List major components on this screen with behavior}}
+        </components>
+      </screen_1>
+      
+      <screen_2>
+        {{Repeat for each major screen...}}
+      </screen_2>
+    </key_screens>
+    
+    <modals_overlays>
+      {{List all modals/dialogs/overlays:
+      - Purpose of each modal
+      - Trigger actions
+      - Content and form fields
+      - Primary and secondary actions
+      - Dismissal behavior
+      
+      Example:
+      - Create Item Modal
+        Triggered by: "New Item" button
+        Content: Form with name, description, category fields
+        Actions: Save (primary), Cancel (secondary)
+        Dismissal: Click outside, ESC key, Cancel button
+      }}
+    </modals_overlays>
+    
+  </ui_layout>
+  
+  
+  <!-- ============================================================ -->
+  <!-- DESIGN SYSTEM -->
+  <!-- Define visual design language -->
+  <!-- ============================================================ -->
+  
+  <design_system>
+    
+    <color_palette>
+      {{Define color scheme:
+      
+      - Primary: {{#HEX}} - {{Usage description}}
+      - Secondary: {{#HEX}} - {{Usage description}}
+      - Accent: {{#HEX}} - {{Usage description}}
+      - Background: {{#HEX}} (light), {{#HEX}} (dark)
+      - Surface: {{#HEX}} (light), {{#HEX}} (dark)
+      - Text: {{#HEX}} (light), {{#HEX}} (dark)
+      - Borders: {{#HEX}} (light), {{#HEX}} (dark)
+      - Success: {{#HEX}}
+      - Warning: {{#HEX}}
+      - Error: {{#HEX}}
+      - Info: {{#HEX}}
+      
+      Example:
+      - Primary: #3B82F6 - Main brand color for buttons, links
+      - Background: #FFFFFF (light), #1F2937 (dark)
+      - Text: #111827 (light), #F9FAFB (dark)
+      }}
+    </color_palette>
+    
+    <typography>
+      {{Define typography system:
+      
+      - Font families (primary, headings, monospace)
+      - Font sizes and scale
+      - Font weights
+      - Line heights
+      - Letter spacing
+      
+      Example:
+      - Sans-serif: Inter, system-ui, sans-serif
+      - Monospace: 'Fira Code', Monaco, monospace
+      - Heading 1: 2.5rem (40px), font-bold, line-height 1.2
+      - Heading 2: 2rem (32px), font-semibold, line-height 1.3
+      - Body: 1rem (16px), font-normal, line-height 1.5
+      - Small: 0.875rem (14px), font-normal, line-height 1.4
+      }}
+    </typography>
+    
+    <spacing>
+      {{Define spacing scale:
+      
+      Example using Tailwind scale:
+      - xs: 0.25rem (4px)
+      - sm: 0.5rem (8px)
+      - md: 1rem (16px)
+      - lg: 1.5rem (24px)
+      - xl: 2rem (32px)
+      - 2xl: 3rem (48px)
+      
+      Usage guidelines:
+      - Component internal padding: sm to md
+      - Section spacing: lg to xl
+      - Page margins: xl to 2xl
+      }}
+    </spacing>
+    
+    <components>
+      
+      <buttons>
+        {{Define button styles:
+        - Primary: Background, text color, hover state, active state
+        - Secondary: Outline style or ghost style
+        - Tertiary: Text-only style
+        - Icon buttons: Size and styling
+        - Button sizes: Small, medium, large
+        - Disabled state appearance
+        - Loading state (spinner)
+        
+        Example:
+        - Primary: bg-blue-600, text-white, hover:bg-blue-700, 
+                   rounded-lg, px-4 py-2, font-medium
+        - Secondary: border-2 border-blue-600, text-blue-600,
+                     hover:bg-blue-50
+        - Disabled: opacity-50, cursor-not-allowed
+        }}
+      </buttons>
+      
+      <inputs>
+        {{Define input field styles:
+        - Text inputs, textareas
+        - Select dropdowns
+        - Checkboxes and radio buttons
+        - Toggles/switches
+        - File upload inputs
+        - Focus states
+        - Error states
+        - Disabled states
+        
+        Example:
+        - Text input: border rounded-md px-3 py-2,
+                      focus:ring-2 focus:ring-blue-500,
+                      error:border-red-500
+        }}
+      </inputs>
+      
+      <cards>
+        {{Define card component styling:
+        - Background, borders, shadows
+        - Padding and spacing
+        - Hover states if clickable
+        - Header, body, footer sections
+        }}
+      </cards>
+      
+      <tables>
+        {{Define table styling:
+        - Header styling
+        - Row styling (including alternating rows)
+        - Cell padding
+        - Borders
+        - Hover states
+        - Sorting indicators
+        }}
+      </tables>
+      
+      <navigation_elements>
+        {{Define nav styling:
+        - Tab styles
+        - Breadcrumb styles
+        - Pagination styles
+        - Active/selected states
+        }}
+      </navigation_elements>
+      
+    </components>
+    
+    <animations>
+      {{Define animation standards:
+      
+      - Transition duration (fast: 150ms, normal: 300ms, slow: 500ms)
+      - Easing functions (ease-in-out, ease-out)
+      - Hover transitions
+      - Loading animations
+      - Page transitions
+      - Micro-interactions
+      - Motion reduction for accessibility
+      
+      Example:
+      - Button hover: transition-all duration-150 ease-in-out
+      - Modal enter: fade-in + scale-up 200ms
+      - List item hover: translate-x-2 duration-150
+      - Page transition: fade 300ms
+      }}
+    </animations>
+    
+    <icons>
+      {{Specify icon library and usage:
+      - Icon library (Heroicons, Font Awesome, Lucide, etc.)
+      - Icon sizes
+      - Icon colors (inherit vs. fixed)
+      - Usage guidelines
+      }}
+    </icons>
+    
+  </design_system>
+  
+  
+  <!-- ============================================================ -->
+  <!-- KEY USER INTERACTIONS & WORKFLOWS -->
+  <!-- Document important user flows step-by-step -->
+  <!-- ============================================================ -->
+  
+  <key_interactions>
+    
+    <workflow_1>
+      <name>{{Workflow Name (e.g., User Registration)}}</name>
+      <description>{{Brief description}}</description>
+      <steps>
+        {{List each step in the workflow:
+        
+        1. User action or trigger
+        2. System response
+        3. UI changes
+        4. Validation or processing
+        5. Success/error handling
+        6. Next state or screen
+        
+        Example for "Create New Post":
+        1. User clicks "New Post" button
+        2. Modal opens with empty form
+        3. User enters title, content, selects category
+        4. User clicks "Save Draft" or "Publish"
+        5. Client validates required fields
+        6. Form data sent to POST /api/posts
+        7. Loading spinner shows on button
+        8. Server validates and creates post in database
+        9. On success: Modal closes, success toast, redirect to post
+        10. On error: Error message shown below relevant field
+        }}
+      </steps>
+      <edge_cases>
+        {{List edge cases and how to handle:
+        - Network failure during save
+        - Validation errors
+        - Duplicate entries
+        - Permission denied
+        - Session expired
+        }}
+      </edge_cases>
+    </workflow_1>
+    
+    <workflow_2>
+      {{Repeat for other key workflows...}}
+    </workflow_2>
+    
+    <!-- Common workflows to document:
+    
+    - User registration/login
+    - Password reset
+    - Creating primary entities
+    - Editing and updating
+    - Deleting with confirmation
+    - Search and filter
+    - File upload
+    - Sharing/collaboration
+    - Payment processing
+    - Email verification
+    - Multi-step forms
+    -->
+    
+  </key_interactions>
+  
+  
+  <!-- ============================================================ -->
+  <!-- IMPLEMENTATION PHASES -->
+  <!-- Break down development into logical, sequential phases -->
+  <!-- ============================================================ -->
+  
+  <implementation_steps>
+    
+    <phase number="1">
+      <title>{{Phase Title (e.g., Foundation & Setup)}}</title>
+      <description>{{What this phase accomplishes}}</description>
+      <tasks>
+        {{List all tasks for this phase:
+        
+        - Initialize project structure
+        - Set up development environment
+        - Configure build tools
+        - Set up database
+        - Create base layouts
+        - Implement authentication scaffold
+        
+        Be specific and actionable. Each task should be clear and testable.
+        
+        Example tasks:
+        - Initialize React app with Vite
+        - Install and configure Tailwind CSS
+        - Set up Express server with TypeScript
+        - Create SQLite database with initial schema
+        - Implement JWT authentication middleware
+        - Create protected route HOC
+        - Build login and registration pages
+        - Set up error handling and logging
+        }}
+      </tasks>
+      <dependencies>
+        {{List what must be completed before this phase}}
+      </dependencies>
+      <deliverables>
+        {{What will be complete after this phase:
+        - Specific features working
+        - Screens accessible
+        - APIs functional
+        }}
+      </deliverables>
+    </phase>
+    
+    <phase number="2">
+      <title>{{Next Phase}}</title>
+      <description>{{Description}}</description>
+      <tasks>
+        {{Continue with subsequent phases...}}
+      </tasks>
+    </phase>
+    
+    <!-- Recommended phase structure:
+    
+    Phase 1: Foundation (Setup, auth, basic layout)
+    Phase 2: Core Features (Main functionality)
+    Phase 3: Data Management (CRUD operations)
+    Phase 4: Advanced Features (Complex interactions)
+    Phase 5: Polish (UI refinement, animations)
+    Phase 6: Testing & Optimization
+    Phase 7: Deployment & Documentation
+    -->
+    
+  </implementation_steps>
+  
+  
+  <!-- ============================================================ -->
+  <!-- SUCCESS CRITERIA -->
+  <!-- Define what "done" looks like -->
+  <!-- ============================================================ -->
+  
+  <success_criteria>
+    
+    <functionality>
+      {{List functional requirements that must work:
+      
+      - All CRUD operations complete without errors
+      - Authentication and authorization working correctly
+      - Search returns accurate results
+      - File uploads process successfully
+      - API endpoints respond within 200ms for common operations
+      - Real-time features update without page refresh
+      - Forms validate correctly on client and server
+      - Error messages are clear and actionable
+      
+      Be specific and measurable.
+      }}
+    </functionality>
+    
+    <user_experience>
+      {{Define UX success criteria:
+      
+      - Interface is intuitive without training
+      - Navigation is clear and consistent
+      - Feedback is immediate for all actions
+      - Loading states prevent confusion
+      - Error recovery is smooth
+      - Mobile experience is seamless
+      - Animations are smooth (60fps)
+      - First contentful paint < 1.5s
+      
+      Focus on observable user experience qualities.
+      }}
+    </user_experience>
+    
+    <technical_quality>
+      {{Define technical standards:
+      
+      - Code follows consistent style guide
+      - No console errors or warnings
+      - All environment variables properly managed
+      - Database queries are optimized (< 100ms)
+      - No N+1 query problems
+      - Proper error handling throughout
+      - Security best practices followed
+      - API responses are properly typed
+      - Test coverage > 80%
+      - Build completes without warnings
+      
+      Include measurable technical metrics.
+      }}
+    </technical_quality>
+    
+    <design_polish>
+      {{Define visual quality standards:
+      
+      - Consistent with design system
+      - Proper spacing and alignment
+      - Responsive on all breakpoints
+      - Typography hierarchy clear
+      - Colors accessible (WCAG AA)
+      - Icons used consistently
+      - Animations feel natural
+      - Dark mode fully functional
+      - No visual bugs or glitches
+      
+      Focus on visual consistency and polish.
+      }}
+    </design_polish>
+    
+    <accessibility>
+      {{Define accessibility requirements:
+      
+      - Keyboard navigation works throughout
+      - Screen reader compatible
+      - ARIA labels on interactive elements
+      - Form labels properly associated
+      - Focus indicators visible
+      - Color contrast meets WCAG AA
+      - Images have alt text
+      - Videos have captions
+      
+      Reference WCAG guidelines.
+      }}
+    </accessibility>
+    
+    <performance>
+      {{Define performance benchmarks:
+      
+      - Page load time < 2 seconds
+      - Time to interactive < 3 seconds
+      - Smooth animations (60fps)
+      - API response times < 200ms (p95)
+      - Database queries < 100ms (p95)
+      - Bundle size < 500KB
+      - Lighthouse score > 90
+      
+      Use measurable metrics.
+      }}
+    </performance>
+    
+    <security>
+      {{Define security requirements:
+      
+      - Input validation on all forms
+      - SQL injection protection
+      - XSS prevention
+      - CSRF tokens implemented
+      - Sensitive data encrypted
+      - API authentication required
+      - Rate limiting on endpoints
+      - Secure headers configured
+      - Dependencies audited (no critical vulnerabilities)
+      
+      Reference OWASP guidelines.
+      }}
+    </security>
+    
+  </success_criteria>
+  
+  
+  <!-- ============================================================ -->
+  <!-- TESTING STRATEGY -->
+  <!-- Optional but recommended -->
+  <!-- ============================================================ -->
+  
+  <testing_strategy>
+    
+    <unit_tests>
+      {{Define unit testing approach:
+      - Utility functions
+      - Business logic
+      - API route handlers
+      - Database models
+      - Target coverage percentage
+      }}
+    </unit_tests>
+    
+    <integration_tests>
+      {{Define integration testing:
+      - API endpoint testing
+      - Database operations
+      - Third-party integrations
+      - Authentication flows
+      }}
+    </integration_tests>
+    
+    <end_to_end_tests>
+      {{Define E2E testing:
+      - Critical user workflows
+      - Testing tools (Playwright, Cypress)
+      - Test scenarios to cover
+      }}
+    </end_to_end_tests>
+    
+    <manual_testing>
+      {{Define manual testing checklist:
+      - Browser compatibility (Chrome, Firefox, Safari, Edge)
+      - Device testing (mobile, tablet, desktop)
+      - Accessibility testing
+      - Visual regression testing
+      }}
+    </manual_testing>
+    
+  </testing_strategy>
+  
+  
+  <!-- ============================================================ -->
+  <!-- DEPLOYMENT & INFRASTRUCTURE -->
+  <!-- Optional but recommended for production apps -->
+  <!-- ============================================================ -->
+  
+  <deployment>
+    
+    <hosting>
+      {{Define hosting requirements:
+      - Platform (Vercel, Netlify, AWS, Railway, etc.)
+      - Server specifications
+      - Scaling strategy
+      - CDN requirements
+      }}
+    </hosting>
+    
+    <ci_cd>
+      {{Define CI/CD pipeline:
+      - Build process
+      - Test execution
+      - Deployment triggers
+      - Environment management (dev, staging, prod)
+      }}
+    </ci_cd>
+    
+    <monitoring>
+      {{Define monitoring and observability:
+      - Error tracking (Sentry)
+      - Performance monitoring (DataDog, New Relic)
+      - Uptime monitoring
+      - Log aggregation
+      - Alerting strategy
+      }}
+    </monitoring>
+    
+    <backup_recovery>
+      {{Define backup strategy:
+      - Database backup frequency
+      - Backup retention policy
+      - Recovery procedure
+      - Disaster recovery plan
+      }}
+    </backup_recovery>
+    
+  </deployment>
+  
+  
+  <!-- ============================================================ -->
+  <!-- DOCUMENTATION -->
+  <!-- Optional: Define documentation requirements -->
+  <!-- ============================================================ -->
+  
+  <documentation>
+    
+    <technical_docs>
+      {{List technical documentation to create:
+      - API documentation (Swagger/OpenAPI)
+      - Database schema documentation
+      - Architecture diagrams
+      - Setup and installation guide
+      - Development workflow guide
+      - Deployment guide
+      }}
+    </technical_docs>
+    
+    <user_docs>
+      {{List user documentation to create:
+      - User manual or help center
+      - Feature guides
+      - FAQ
+      - Video tutorials
+      - Onboarding materials
+      }}
+    </user_docs>
+    
+  </documentation>
+  
+  
+  <!-- ============================================================ -->
+  <!-- CONSTRAINTS & CONSIDERATIONS -->
+  <!-- Optional: Document limitations and special considerations -->
+  <!-- ============================================================ -->
+  
+  <constraints>
+    
+    <technical_constraints>
+      {{List technical limitations:
+      - Browser support requirements
+      - Performance constraints
+      - Scalability limits
+      - Third-party API rate limits
+      - Budget constraints
+      }}
+    </technical_constraints>
+    
+    <business_constraints>
+      {{List business limitations:
+      - Timeline requirements
+      - Resource availability
+      - Regulatory compliance (GDPR, HIPAA, etc.)
+      - Licensing restrictions
+      }}
+    </business_constraints>
+    
+    <out_of_scope>
+      {{Explicitly list what is NOT included:
+      - Features to defer to later phases
+      - Integrations not in scope
+      - Platforms not supported
+      - Known limitations
+      }}
+    </out_of_scope>
+    
+  </constraints>
+  
+  
+  <!-- ============================================================ -->
+  <!-- FUTURE ENHANCEMENTS -->
+  <!-- Optional: Document future roadmap items -->
+  <!-- ============================================================ -->
+  
+  <future_enhancements>
+    {{List potential future features:
+    
+    - Feature ideas for v2
+    - Experimental features to explore
+    - Technical debt to address
+    - Scalability improvements
+    - New integrations to add
+    
+    This helps maintain focus on current scope while capturing future ideas.
+    }}
+  </future_enhancements>
+  
+</project_specification>
