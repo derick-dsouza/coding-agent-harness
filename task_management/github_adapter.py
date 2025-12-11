@@ -72,17 +72,19 @@ class GitHubAdapter(TaskManagementAdapter):
         IssueStatus.CANCELED: "status:canceled",
     }
     
-    def __init__(self, owner: str, repo: str):
+    def __init__(self, owner: str, repo: str, project_dir: Optional[str] = None):
         """
         Initialize GitHub adapter.
         
         Args:
             owner: GitHub repository owner (user or organization)
             repo: GitHub repository name
+            project_dir: Project directory for audit tracking
         """
         self.owner = owner
         self.repo = repo
         self.repo_full = f"{owner}/{repo}"
+        self.project_dir = project_dir
         
         # Verify gh CLI is available
         try:
@@ -551,6 +553,29 @@ class GitHubAdapter(TaskManagementAdapter):
             return True
         except subprocess.CalledProcessError:
             return False
+    
+    # ==================== Audit Tracking ====================
+    
+    def close_issue_with_audit_tracking(
+        self,
+        issue_id: str,
+        comment: Optional[str] = None,
+        project_dir: Optional[str] = None,
+    ) -> Issue:
+        """
+        Close GitHub issue with automatic audit tracking.
+        
+        Overrides base implementation to use GitHub project_dir.
+        """
+        # Use stored project_dir if not specified
+        if project_dir is None:
+            project_dir = self.project_dir or "."
+        
+        return super().close_issue_with_audit_tracking(
+            issue_id=issue_id,
+            comment=comment,
+            project_dir=project_dir,
+        )
     
     # ==================== Helper Methods ====================
     

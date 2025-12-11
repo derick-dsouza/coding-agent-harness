@@ -371,3 +371,70 @@ class TaskManagementAdapter(ABC):
             True if connection successful, False otherwise
         """
         pass
+    
+    # ==================== Audit Tracking ====================
+    
+    def close_issue_with_audit_tracking(
+        self,
+        issue_id: str,
+        comment: Optional[str] = None,
+        project_dir: Optional[str] = None,
+    ) -> Issue:
+        """
+        Close an issue and automatically update audit tracking.
+        
+        This ensures features_awaiting_audit counter is incremented
+        without requiring manual commands.
+        
+        Args:
+            issue_id: Issue identifier
+            comment: Optional comment to add when closing
+            project_dir: Optional project directory (defaults to current dir)
+            
+        Returns:
+            Updated Issue object
+        """
+        import json
+        from pathlib import Path
+        
+        # 1. Update issue status to DONE
+        issue = self.update_issue(issue_id, status=IssueStatus.DONE)
+        
+        # 2. Add "awaiting-audit" label if labels are supported
+        try:
+            existing_label_ids = [label.id for label in issue.labels]
+            # Try to find awaiting-audit label
+            all_labels = self.list_labels()
+            audit_label = next((l for l in all_labels if l.name == "awaiting-audit"), None)
+            if audit_label and audit_label.id not in existing_label_ids:
+                self.update_issue(issue_id, add_labels=[audit_label.id])
+        except Exception:
+            # Labels not supported or error - continue anyway
+            pass
+        
+        # 3. Update .task_project.json counter
+        if project_dir is None:
+            project_dir = "."
+        project_file = Path(project_dir) / ".task_project.json"
+        
+        if project_file.exists():
+            try:
+                with open(project_file, 'r') as f:
+                    data = json.load(f)
+                
+                # Increment audit counter
+                data["features_awaiting_audit"] = data.get("features_awaiting_audit", 0) + 1
+                
+                with open(project_file, 'w') as f:
+                    json.dump(data, f, indent=2)
+            except Exception as e:
+                print(f"Warning: Could not update audit counter: {e}")
+        
+        # 4. Add comment if provided
+        if comment:
+            try:
+                self.create_comment(issue_id, comment)
+            except Exception as e:
+                print(f"Warning: Could not add comment: {e}")
+        
+        return issue

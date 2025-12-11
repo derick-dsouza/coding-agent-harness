@@ -27,6 +27,7 @@ class AdapterType:
 def create_adapter(
     adapter_type: str = "linear",
     api_key: Optional[str] = None,
+    project_dir: Optional[str] = None,
     **kwargs
 ) -> TaskManagementAdapter:
     """
@@ -35,6 +36,7 @@ def create_adapter(
     Args:
         adapter_type: Type of adapter ("linear", "github", "beads", etc.)
         api_key: API key for the service (if None, reads from environment)
+        project_dir: Project directory for audit tracking
         **kwargs: Additional adapter-specific configuration
             - For GitHub: owner (str), repo (str)
             - For BEADS: workspace (str, optional)
@@ -61,17 +63,17 @@ def create_adapter(
     adapter_type = adapter_type.lower()
     
     if adapter_type == AdapterType.LINEAR:
-        return LinearAdapter(api_key=api_key)
+        return LinearAdapter(api_key=api_key, project_dir=project_dir)
     
     elif adapter_type == AdapterType.GITHUB:
         owner = kwargs.get("owner")
         repo = kwargs.get("repo")
         if not owner or not repo:
             raise ValueError("GitHub adapter requires 'owner' and 'repo' kwargs")
-        return GitHubAdapter(owner=owner, repo=repo)
+        return GitHubAdapter(owner=owner, repo=repo, project_dir=project_dir)
     
     elif adapter_type == AdapterType.BEADS:
-        workspace = kwargs.get("workspace")
+        workspace = kwargs.get("workspace") or project_dir
         return BeadsAdapter(workspace=workspace)
     
     # Future adapter types:

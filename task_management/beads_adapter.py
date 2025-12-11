@@ -486,6 +486,29 @@ class BeadsAdapter(TaskManagementAdapter):
         except subprocess.CalledProcessError:
             return False
     
+    # ==================== Audit Tracking ====================
+    
+    def close_issue_with_audit_tracking(
+        self,
+        issue_id: str,
+        comment: Optional[str] = None,
+        project_dir: Optional[str] = None,
+    ) -> Issue:
+        """
+        Close BEADS issue with automatic audit tracking.
+        
+        Overrides base implementation to use BEADS workspace.
+        """
+        # Use workspace as project_dir if not specified
+        if project_dir is None:
+            project_dir = self.workspace or "."
+        
+        return super().close_issue_with_audit_tracking(
+            issue_id=issue_id,
+            comment=comment,
+            project_dir=project_dir,
+        )
+    
     # ==================== Helper Methods ====================
     
     def _parse_datetime(self, dt_string: Optional[str]) -> Optional[datetime]:

@@ -76,16 +76,18 @@ class LinearAdapter(TaskManagementAdapter):
         4: IssuePriority.LOW,
     }
     
-    def __init__(self, api_key: Optional[str] = None):
+    def __init__(self, api_key: Optional[str] = None, project_dir: Optional[str] = None):
         """
         Initialize Linear adapter.
         
         Args:
             api_key: Linear API key (if None, reads from LINEAR_API_KEY env var)
+            project_dir: Project directory for audit tracking
         """
         self.api_key = api_key or os.getenv("LINEAR_API_KEY")
         if not self.api_key:
             raise ValueError("LINEAR_API_KEY not provided and not in environment")
+        self.project_dir = project_dir
     
     # ==================== Helper Methods ====================
     
@@ -583,6 +585,29 @@ class LinearAdapter(TaskManagementAdapter):
             return True
         except Exception:
             return False
+    
+    # ==================== Audit Tracking ====================
+    
+    def close_issue_with_audit_tracking(
+        self,
+        issue_id: str,
+        comment: Optional[str] = None,
+        project_dir: Optional[str] = None,
+    ) -> Issue:
+        """
+        Close Linear issue with automatic audit tracking.
+        
+        Overrides base implementation to use Linear project_dir.
+        """
+        # Use stored project_dir if not specified
+        if project_dir is None:
+            project_dir = self.project_dir or "."
+        
+        return super().close_issue_with_audit_tracking(
+            issue_id=issue_id,
+            comment=comment,
+            project_dir=project_dir,
+        )
     
     # ==================== Helper Methods ====================
     
