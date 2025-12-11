@@ -25,9 +25,9 @@ When creating 50 issues:
 - If creating many issues, add brief pauses (use `sleep 1` between batches of 10)
 - Check `.task_project.json` for `issues_created` count to resume from the right place
 
-### API CACHING
+### API CACHING (Linear only)
 
-The harness caches Linear API responses to reduce rate limit pressure:
+If using Linear, the harness caches API responses to reduce rate limit pressure:
 
 **During initialization:**
 - Team/project queries are cached (1 hour TTL)
@@ -35,6 +35,7 @@ The harness caches Linear API responses to reduce rate limit pressure:
 - No action needed - happens automatically
 
 **Note:** First session may be slower as cache is being populated.
+For other task managers (GitHub Issues, BEADS), caching may work differently or not be available.
 
 ### FIRST: Check for Existing State (CRITICAL - Prevents Duplicates)
 

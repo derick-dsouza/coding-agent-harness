@@ -12,7 +12,7 @@ platform. The workflow is the same regardless - the system handles the mapping a
 
 ### TASK MANAGEMENT API RATE LIMITS
 
-Your task management system has API rate limits (e.g., Linear: 1,500 requests/hour).
+Your task management system may have API rate limits (e.g., Linear: 1,500 requests/hour, GitHub: 5,000/hour).
 
 **If you see a rate limit error:**
 - The harness will automatically pause and wait before retrying
@@ -24,9 +24,9 @@ Your task management system has API rate limits (e.g., Linear: 1,500 requests/ho
 - Don't repeatedly query the same issues
 - Batch your status updates (update once when done, not multiple times)
 
-### API CACHING
+### API CACHING (Linear only)
 
-The harness automatically caches Linear API responses to reduce API calls:
+If using Linear, the harness automatically caches API responses to reduce API calls:
 
 **How it works:**
 - First query caches the result (5 minute TTL for issue lists, 3 min for individual issues)
@@ -40,18 +40,20 @@ The harness automatically caches Linear API responses to reduce API calls:
 - Your updates automatically invalidate cache to prevent stale data
 - No action needed - caching is transparent
 
-**💡 Quick Reference:** See `QUERY_OPTIMIZATION_GUIDE.md` for smart querying patterns.
+**Note:** Other task managers (GitHub Issues, BEADS) may use different caching strategies.
 
 ---
 
-## 🚀 BATCH OPERATIONS (Use When Updating Multiple Issues)
+## 🚀 BATCH OPERATIONS (Linear only - Use When Updating Multiple Issues)
 
-**When to Batch:**
+**Note:** Batch operations are currently only available for Linear adapter.
+
+**When to Batch (Linear):**
 - Marking 2+ features as DONE
 - Adding labels to 3+ issues
 - Any time you're doing the same update to multiple issues
 
-**How to Batch:**
+**How to Batch (Linear):**
 
 ```python
 # Import the batch helper
@@ -76,9 +78,7 @@ result = batch_add_labels(issue_ids, label_ids)  # 1 API call instead of 3!
 - Faster execution
 - Fewer rate limit concerns
 
-**Rule of Thumb:**
-- 1 issue: Use individual update
-- 2+ issues: Use batch update
+**For other task managers:** Use MCP tools directly (batch operations not yet available).
 
 ---
 

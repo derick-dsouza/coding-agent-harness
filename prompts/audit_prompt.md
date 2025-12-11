@@ -20,9 +20,9 @@ and either approve them or identify issues that need fixing.
 Only fix CRITICAL issues yourself. For all other issues, create detailed
 [FIX] issues for the coding agent to handle.
 
-### API CACHING
+### API CACHING (Linear only)
 
-The harness caches Linear API responses to improve performance:
+If using Linear, the harness caches API responses to improve performance:
 
 **During audit:**
 - Issue queries are cached (5 min TTL for lists, 3 min for individual issues)
@@ -31,6 +31,7 @@ The harness caches Linear API responses to improve performance:
 - Cache stats shown at end of session
 
 **Note:** This means you can check issue status repeatedly without rate limit concerns.
+For other task managers (GitHub Issues, BEADS), caching may work differently or not be available.
 
 ---
 
@@ -58,9 +59,11 @@ against the original specification.
 
 ---
 
-## 🚀 BATCH OPERATIONS (CRITICAL for Audit Sessions!)
+## 🚀 BATCH OPERATIONS (Linear only - CRITICAL for Audit Sessions!)
 
-**Audit sessions are THE perfect use case for batching!**
+**Note:** Batch operations are currently only available for Linear adapter.
+
+**Audit sessions are THE perfect use case for batching (Linear)!**
 
 You'll typically audit 10-20 features in one session. Without batching:
 - 20 features = 20 individual update calls = 20 API calls
@@ -69,7 +72,7 @@ With batching:
 - 20 features = 1 batch update call = 1 API call
 - **Savings: 95% fewer API calls!**
 
-**How to Use:**
+**How to Use (Linear):**
 
 ```python
 # Import batch helpers
