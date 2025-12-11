@@ -65,7 +65,7 @@ bd update ISSUE_ID --status in_progress
 bd label add ISSUE_ID label-name
 
 # Add comment (appends to description)
-bd update ISSUE_ID --description "$(bd show ISSUE_ID --json | jq -r .description)\n\n---\nComment: Your comment here"
+bd update ISSUE_ID --description "$(bd show ISSUE_ID --json | jq -r '.[0].description')\n\n---\nComment: Your comment here"
 ```
 
 **BEADS Workflow:**

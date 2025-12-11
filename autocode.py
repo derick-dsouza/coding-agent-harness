@@ -414,6 +414,34 @@ def main() -> None:
     # First-time setup: Check if this is a fresh project
     config_path = project_dir / CONFIG_FILE
     task_project_path = project_dir / ".task_project.json"
+    
+    # Check for task manager mismatch
+    if config_path.exists() and task_project_path.exists():
+        try:
+            with open(task_project_path) as f:
+                task_data = json.load(f)
+            
+            config_adapter = config.get("task_adapter", "linear")
+            
+            # Detect mismatch: Linear IDs in file but BEADS/GitHub configured
+            has_linear_ids = "team_id" in task_data or "project_id" in task_data
+            
+            if config_adapter == "beads" and has_linear_ids:
+                print("\n" + "="*70)
+                print("  ⚠️  TASK MANAGER MISMATCH DETECTED")
+                print("="*70)
+                print(f"\nConfigured adapter: BEADS")
+                print(f"Found Linear project data in .task_project.json")
+                print("\nThe .task_project.json file contains Linear project data,")
+                print("but your config specifies BEADS as the task manager.")
+                print("\nRecommended action:")
+                print(f"  rm {task_project_path}")
+                print(f"  # Then run autocode again to initialize with BEADS")
+                return
+        except Exception:
+            # Ignore JSON parsing errors
+            pass
+    
     is_first_run = not config_path.exists() and not task_project_path.exists()
     
     # Run interactive wizard if first run and no CLI args provided

@@ -104,7 +104,7 @@ bd update ISSUE_ID --status closed
 bd label add ISSUE_ID awaiting-audit
 
 # Add comment (append to description)
-bd update ISSUE_ID --description "$(bd show ISSUE_ID --json | jq -r .description)\n\n---\nProgress: Feature completed"
+bd update ISSUE_ID --description "$(bd show ISSUE_ID --json | jq -r '.[0].description')\n\n---\nProgress: Feature completed"
 ```
 
 **BEADS Workflow:**

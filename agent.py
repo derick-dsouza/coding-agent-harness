@@ -397,8 +397,9 @@ def has_work_to_do(project_dir: Path, is_first_run: bool) -> bool:
     # Check if there are any in-progress or todo issues
     in_progress = state.get("in_progress", 0)
     todo = state.get("todo", 0)
+    open_count = state.get("open", 0)  # BEADS uses 'open' instead of 'todo'
     
-    return (in_progress + todo) > 0
+    return (in_progress + todo + open_count) > 0
 
 
 def should_run_audit(project_dir: Path) -> bool:
@@ -472,11 +473,15 @@ async def run_agent_session(
 
                     if block_type == "TextBlock" and hasattr(block, "text"):
                         response_text += block.text
-                        print(block.text, end="", flush=True)
+                        # Add spacing around agent text blocks
+                        if block.text.strip():
+                            print(f"\n{block.text}", flush=True)
+                        else:
+                            print(block.text, end="", flush=True)
                     elif block_type == "ToolUseBlock" and hasattr(block, "name"):
                         tool_name = block.name
                         if verbose:
-                            print(f"\n[Tool: {tool_name}]", flush=True)
+                            print(f"\n\n[Tool: {tool_name}]", flush=True)
                         
                         # Track Linear API calls when tool is invoked
                         if "mcp__linear__" in tool_name:
@@ -523,11 +528,11 @@ async def run_agent_session(
 
                         # Check if command was blocked by security hook
                         if "blocked" in result_str.lower():
-                            print(f"   [BLOCKED] {result_content}", flush=True)
+                            print(f"\n   [BLOCKED] {result_content}\n", flush=True)
                         elif is_error:
                             # Check for rate limit errors
                             if rate_limit_handler.is_rate_limit_error(result_str, tool_name=getattr(block, "name", "")):
-                                print(f"   [Rate Limited] {result_str[:200]}", flush=True)
+                                print(f"\n   [Rate Limited] {result_str[:200]}\n", flush=True)
                                 action, wait_time = await rate_limit_handler.handle_rate_limit(result_str, tool_name=getattr(block, "name", ""))
                                 
                                 if action == "exit":
@@ -536,7 +541,7 @@ async def run_agent_session(
                             else:
                                 # Show other errors (truncated)
                                 error_str = result_str[:500]
-                                print(f"   [Error] {error_str}", flush=True)
+                                print(f"\n   [Error] {error_str}\n", flush=True)
                         else:
                             # Tool succeeded - reset rate limit counter and track Linear API calls
                             tool_name = getattr(block, "name", "")
@@ -544,7 +549,7 @@ async def run_agent_session(
                                 rate_limit_handler.rate_limit_handler.track_api_call()
                             rate_limit_handler.reset()
                             if verbose:
-                                print("   [Done]", flush=True)
+                                print("\n   [Done]\n", flush=True)
 
         print("\n" + "-" * 70 + "\n")
         return "continue", response_text
