@@ -10,6 +10,7 @@ from pathlib import Path
 
 PROMPTS_DIR = Path(__file__).parent / "prompts"
 TASK_MANAGERS_DIR = PROMPTS_DIR / "task_managers"
+TASK_ADAPTERS_DIR = PROMPTS_DIR / "task_adapters"
 
 # Default spec file name used in prompt templates
 DEFAULT_SPEC_FILE = "app_spec.txt"
@@ -33,6 +34,13 @@ def load_prompt(name: str, spec_file: Path | None = None, task_adapter: str | No
     if spec_file is not None:
         content = content.replace(DEFAULT_SPEC_FILE, str(spec_file))
 
+    # Include command restrictions (always included)
+    cmd_restrictions_path = TASK_ADAPTERS_DIR / "command_restrictions.txt"
+    if cmd_restrictions_path.exists():
+        cmd_restrictions_content = cmd_restrictions_path.read_text()
+        # Insert at the very beginning before role section
+        content = f"{cmd_restrictions_content}\n\n{content}"
+    
     # Include task manager-specific guidance if adapter specified
     if task_adapter:
         task_manager_path = TASK_MANAGERS_DIR / f"{task_adapter}.md"

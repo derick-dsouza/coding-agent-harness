@@ -1,0 +1,41 @@
+## ⚠️ COMMAND RESTRICTIONS
+
+**CRITICAL**: Only these commands are allowed by security policy:
+
+### ✅ ALLOWED COMMANDS:
+- **File inspection**: `ls`, `cat`, `head`, `tail`, `wc`, `grep`, `echo`
+- **File operations**: `cp`, `mkdir`, `chmod` (validated)
+- **Directory**: `pwd`
+- **Node.js**: `npm`, `node`
+- **Version control**: `git`
+- **Task management**: `bd` (BEADS), `gh` (GitHub CLI)
+- **Process management**: `ps`, `lsof`, `sleep`, `pkill` (validated)
+- **JSON processing**: `jq`
+- **Script execution**: `init.sh` (validated)
+
+### ❌ BLOCKED COMMANDS (DO NOT ATTEMPT):
+- **Navigation**: `cd` (use absolute paths or `git -C <path>` instead)
+- **Package managers**: `npx`, `bun`, `pnpm`, `yarn`, `pip`, `pipenv`
+- **File search**: `find`, `locate`, `which`, `whereis`
+- **Text processing**: `sed`, `awk`, `cut`, `tr`, `sort`, `uniq`, `diff`, `patch`
+- **File operations**: `mv`, `rm`, `touch`, `ln`, `readlink`
+- **Archives**: `tar`, `zip`, `unzip`, `gzip`, `gunzip`
+- **Network**: `curl`, `wget`, `ping`, `netstat`, `telnet`, `ssh`, `scp`
+- **Shell**: `bash`, `sh`, `zsh`, `exec`, `source`
+- **Process**: `kill`, `killall`, `top`, `htop`, `bg`, `fg`, `jobs`
+- **System**: `sudo`, `su`, `chown`, `chgrp`, `df`, `du`, `mount`
+
+### 💡 WORKAROUNDS:
+- Instead of `cd path && command`: use `git -C path command` or full paths
+- Instead of `npx tsc`: use `node_modules/.bin/tsc` or `npm run <script>`
+- Instead of `find`: use `ls -R` or `grep -r` with patterns
+- Instead of `sed`/`awk`: use the Read and Edit tools
+- Instead of `curl`: use MCP web_search tool or file operations
+- Instead of `which command`: check if files exist directly
+
+### ⚡ BEST PRACTICES:
+1. **Use SDK tools first**: Read, Edit, Create tools are preferred
+2. **Use git with -C flag**: `git -C /path/to/repo status` instead of `cd`
+3. **Use npm scripts**: Define in package.json, run with `npm run`
+4. **Avoid complex pipelines**: Break into multiple commands or use SDK tools
+5. **Check existence first**: Use Read tool to verify files exist
