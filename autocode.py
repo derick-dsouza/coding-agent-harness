@@ -314,9 +314,34 @@ def resolve_config(
         spec_file = Path(DEFAULT_SPEC_FILE)
         spec_source = "default"
 
-    # Validate spec file exists
+    # Validate spec file exists and is not empty
     spec_path = project_dir / spec_file
     if spec_path.exists() and spec_path.is_file():
+        # Check if spec file is empty or only whitespace
+        spec_content = spec_path.read_text().strip()
+        if not spec_content:
+            print(f"\n⚠️  WARNING: Spec file is empty: {spec_path}")
+            print("\nThe spec file contains no requirements. Options:")
+            print("  1. Add requirements to the spec file and run again")
+            print("  2. Continue anyway (agent will only work on existing open issues)")
+            
+            # Check if there are existing open issues
+            task_project_path = project_dir / ".task_project.json"
+            if task_project_path.exists():
+                with open(task_project_path) as f:
+                    task_data = json.load(f)
+                    total_issues = task_data.get("total_issues_created", 0)
+                    if total_issues > 0:
+                        print(f"\n  📋 Found {total_issues} existing issues in task manager")
+                        print("     Agent can work on open issues without a spec file")
+            
+            response = input("\nContinue with empty spec file? (y/n): ").strip().lower()
+            if response != 'y':
+                print("\nExiting. Please add requirements to the spec file.")
+                return None
+            
+            print(f"\n✅ Continuing with empty spec file")
+        
         resolved["spec_file"] = spec_file
         print(f"Using spec_file from {spec_source}: {spec_file}")
     else:
