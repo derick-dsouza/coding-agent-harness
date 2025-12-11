@@ -67,6 +67,7 @@ LINEAR_TOOLS = [
     "mcp__linear__list_issue_statuses",
     "mcp__linear__get_issue_status",
     "mcp__linear__list_issue_labels",
+    "mcp__linear__create_issue_label",
     # Users
     "mcp__linear__list_users",
     "mcp__linear__get_user",
@@ -83,13 +84,14 @@ BUILTIN_TOOLS = [
 ]
 
 
-def create_client(project_dir: Path, model: str) -> ClaudeSDKClient:
+def create_client(project_dir: Path, model: str, task_adapter: str = "linear") -> ClaudeSDKClient:
     """
     Create a Claude Agent SDK client with multi-layered security.
 
     Args:
         project_dir: Directory for the project
         model: Claude model to use
+        task_adapter: Task management adapter (linear, beads, github)
 
     Returns:
         Configured ClaudeSDKClient
@@ -107,38 +109,68 @@ def create_client(project_dir: Path, model: str) -> ClaudeSDKClient:
             "Run 'claude setup-token after installing the Claude Code CLI."
         )
 
-    linear_api_key = os.environ.get("LINEAR_API_KEY")
-    if not linear_api_key:
-        raise ValueError(
-            "LINEAR_API_KEY environment variable not set.\n"
-            "Get your API key from: https://linear.app/YOUR-TEAM/settings/api"
-        )
+    # Only require Linear API key if using Linear adapter
+    linear_api_key = None
+    if task_adapter == "linear":
+        linear_api_key = os.environ.get("LINEAR_API_KEY")
+        if not linear_api_key:
+            raise ValueError(
+                "LINEAR_API_KEY environment variable not set.\n"
+                "Get your API key from: https://linear.app/YOUR-TEAM/settings/api"
+            )
 
+    # Build task management tools and servers based on adapter
+    task_tools = []
+    task_mcp_servers = {}
+    task_manager_desc = ""
+    
+    if task_adapter == "linear":
+        task_tools = LINEAR_TOOLS
+        task_mcp_servers = {
+            "linear": {
+                "type": "http",
+                "url": "https://mcp.linear.app/mcp",
+                "headers": {
+                    "Authorization": f"Bearer {linear_api_key}"
+                }
+            }
+        }
+        task_manager_desc = "linear (project management)"
+    elif task_adapter == "beads":
+        # BEADS uses local CLI, no MCP server needed
+        task_manager_desc = "BEADS (local task management)"
+    elif task_adapter == "github":
+        # GitHub Issues - will be implemented later
+        task_manager_desc = "GitHub Issues"
+    
     # Create comprehensive security settings
     # Note: Using relative paths ("./**") restricts access to project directory
     # since cwd is set to project_dir
     # Sandbox disabled - causes path mapping issues. Security still enforced via:
     # - Bash allowlist (security.py)
     # - File permissions restricted to project dir (./**)
+    
+    allowed_permissions = [
+        # Allow all file operations within the project directory
+        "Read(./**)",
+        "Write(./**)",
+        "Edit(./**)",
+        "Glob(./**)",
+        "Grep(./**)",
+        # Bash permission granted here, but actual commands are validated
+        # by the bash_security_hook (see security.py for allowed commands)
+        "Bash(*)",
+        # Allow Puppeteer MCP tools for browser automation
+        *PUPPETEER_TOOLS,
+        # Add task management tools
+        *task_tools,
+    ]
+    
     security_settings = {
         "sandbox": {"enabled": False},
         "permissions": {
             "defaultMode": "acceptEdits",  # Auto-approve edits within allowed directories
-            "allow": [
-                # Allow all file operations within the project directory
-                "Read(./**)",
-                "Write(./**)",
-                "Edit(./**)",
-                "Glob(./**)",
-                "Grep(./**)",
-                # Bash permission granted here, but actual commands are validated
-                # by the bash_security_hook (see security.py for allowed commands)
-                "Bash(*)",
-                # Allow Puppeteer MCP tools for browser automation
-                *PUPPETEER_TOOLS,
-                # Allow Linear MCP tools for project management
-                *LINEAR_TOOLS,
-            ],
+            "allow": allowed_permissions,
         },
     }
 
@@ -153,30 +185,39 @@ def create_client(project_dir: Path, model: str) -> ClaudeSDKClient:
     print(f"Created security settings at {settings_file}")
     print(f"   - Filesystem restricted to: {project_dir.resolve()}")
     print("   - Bash commands restricted to allowlist (see security.py)")
-    print("   - MCP servers: puppeteer (browser automation), linear (project management)")
+    
+    mcp_server_list = ["puppeteer (browser automation)"]
+    if task_manager_desc:
+        mcp_server_list.append(task_manager_desc)
+    print(f"   - MCP servers: {', '.join(mcp_server_list)}")
     print()
+
+    # Build system prompt based on task adapter
+    if task_adapter == "linear":
+        system_prompt = "You are an expert full-stack developer building a production-quality web application. You use Linear for project management and tracking all your work."
+    elif task_adapter == "beads":
+        system_prompt = "You are an expert full-stack developer building a production-quality web application. You use BEADS (bd CLI) for local task management and tracking all your work."
+    elif task_adapter == "github":
+        system_prompt = "You are an expert full-stack developer building a production-quality web application. You use GitHub Issues for project management and tracking all your work."
+    else:
+        system_prompt = "You are an expert full-stack developer building a production-quality web application."
+
+    # Combine MCP servers
+    all_mcp_servers = {
+        "puppeteer": {"command": "npx", "args": ["puppeteer-mcp-server"]},
+        **task_mcp_servers
+    }
 
     return ClaudeSDKClient(
         options=ClaudeAgentOptions(
             model=model,
-            system_prompt="You are an expert full-stack developer building a production-quality web application. You use Linear for project management and tracking all your work.",
+            system_prompt=system_prompt,
             allowed_tools=[
                 *BUILTIN_TOOLS,
                 *PUPPETEER_TOOLS,
-                *LINEAR_TOOLS,
+                *task_tools,
             ],
-            mcp_servers={
-                "puppeteer": {"command": "npx", "args": ["puppeteer-mcp-server"]},
-                # Linear MCP with Streamable HTTP transport (recommended over SSE)
-                # See: https://linear.app/docs/mcp
-                "linear": {
-                    "type": "http",
-                    "url": "https://mcp.linear.app/mcp",
-                    "headers": {
-                        "Authorization": f"Bearer {linear_api_key}"
-                    }
-                }
-            },
+            mcp_servers=all_mcp_servers,
             hooks={
                 "PreToolUse": [
                     HookMatcher(matcher="Bash", hooks=[bash_security_hook]),

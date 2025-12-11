@@ -560,6 +560,7 @@ async def run_autonomous_agent(
     initializer_model: str,
     coding_model: str,
     audit_model: str,
+    task_adapter: str = "linear",
     max_iterations: Optional[int] = None,
     verbose: bool = False,
 ) -> None:
@@ -572,6 +573,7 @@ async def run_autonomous_agent(
         initializer_model: Claude model for initialization
         coding_model: Claude model for coding sessions
         audit_model: Claude model for audit sessions
+        task_adapter: Task management adapter (linear, beads, github)
         max_iterations: Maximum number of iterations (None for unlimited)
         verbose: Enable verbose output including JSON dumps
     """
@@ -580,7 +582,7 @@ async def run_autonomous_agent(
     print("=" * 70)
     print(f"\nProject directory: {project_dir}")
     print(f"Spec file: {spec_file}")
-    print(f"Task adapter: {os.environ.get('TASK_ADAPTER_TYPE', 'linear')}")
+    print(f"Task adapter: {task_adapter}")
     print(f"Initializer model: {initializer_model}")
     print(f"Coding model: {coding_model}")
     print(f"Audit model: {audit_model}")
@@ -594,24 +596,25 @@ async def run_autonomous_agent(
     # We use .task_project.json as the marker for initialization
     is_first_run = not is_task_initialized(project_dir)
 
-    # Initialize Linear API call tracker
-    tracker = init_tracker(project_dir)
-    
-    # Initialize Linear API cache
-    cache = init_cache(project_dir)
-    
-    # Clean up old data
-    tracker.cleanup_old_calls(days=7)
-    expired = cache.clear_expired()
-    if expired > 0:
-        print(f"🧹 Cleared {expired} expired cache entries")
-    
-    # Check current rate limit status
-    calls_last_hour = tracker.get_call_count_in_window()
-    if calls_last_hour > 0:
-        cache_stats = cache.get_stats()
-        remaining = 1500 - calls_last_hour
-        percent_used = (calls_last_hour / 1500) * 100
+    # Initialize Linear API call tracker (only for Linear adapter)
+    if task_adapter == "linear":
+        tracker = init_tracker(project_dir)
+        
+        # Initialize Linear API cache
+        cache = init_cache(project_dir)
+        
+        # Clean up old data
+        tracker.cleanup_old_calls(days=7)
+        expired = cache.clear_expired()
+        if expired > 0:
+            print(f"🧹 Cleared {expired} expired cache entries")
+        
+        # Check current rate limit status
+        calls_last_hour = tracker.get_call_count_in_window()
+        if calls_last_hour > 0:
+            cache_stats = cache.get_stats()
+            remaining = 1500 - calls_last_hour
+            percent_used = (calls_last_hour / 1500) * 100
         
         print(f"📊 Linear API Status:")
         print(f"   Calls in last hour: {calls_last_hour}/1500 ({percent_used:.1f}% used)")
@@ -703,7 +706,7 @@ async def run_autonomous_agent(
             print(f"Using coding model: {model}\n")
 
         # Create client (fresh context)
-        client = create_client(project_dir, model)
+        client = create_client(project_dir, model, task_adapter)
 
         # Run session with async context manager
         async with client:

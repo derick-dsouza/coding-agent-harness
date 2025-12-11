@@ -361,9 +361,11 @@ def resolve_config(
     if args.task_adapter is not None:
         resolved["task_manager"] = args.task_adapter
         print(f"Using task_manager from CLI: {args.task_adapter}")
-    elif "task_manager" in config:
-        resolved["task_manager"] = config["task_manager"]
-        print(f"Using task_manager from {CONFIG_FILE}: {config['task_manager']}")
+    elif "task_adapter" in config or "task_manager" in config:
+        # Support both 'task_adapter' (new) and 'task_manager' (legacy) keys
+        task_adapter = config.get("task_adapter") or config.get("task_manager")
+        resolved["task_manager"] = task_adapter
+        print(f"Using task_manager from {CONFIG_FILE}: {task_adapter}")
     elif os.environ.get("TASK_ADAPTER_TYPE"):
         resolved["task_manager"] = os.environ["TASK_ADAPTER_TYPE"]
         print(f"Using task_manager from TASK_ADAPTER_TYPE env: {os.environ['TASK_ADAPTER_TYPE']}")
@@ -528,6 +530,7 @@ def main() -> None:
                 initializer_model=resolved["initializer_model"],
                 coding_model=resolved["coding_model"],
                 audit_model=resolved["audit_model"],
+                task_adapter=task_manager,
                 max_iterations=resolved["max_iterations"],
                 verbose=args.verbose,
             )

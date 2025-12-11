@@ -22,12 +22,15 @@ from client import create_client
 async def run_spec_change_detection(
     project_dir: Path,
     model: str = "claude-opus-4-20250514",
+    task_adapter: str = "linear",
 ) -> None:
     """
     Run the spec change detector agent.
     
     Args:
         project_dir: Directory containing the project (can be harness root or generated project)
+        model: Claude model to use
+        task_adapter: Task management adapter (linear, beads, github)
         model: Claude model to use (default: Opus for analysis quality)
     """
     print("\n" + "=" * 70)
@@ -84,7 +87,7 @@ async def run_spec_change_detection(
     prompt = f"{prompt_template}\n\n---\n\n## APP SPECIFICATION\n\n{spec_content}"
     
     # Create client
-    client = create_client(project_dir, model)
+    client = create_client(project_dir, model, task_adapter)
     
     print("Analyzing spec for changes...\n")
     print("-" * 70)
@@ -145,6 +148,12 @@ def main():
         default="claude-opus-4-20250514",
         help="Claude model to use (default: claude-opus-4-20250514)",
     )
+    parser.add_argument(
+        "--task-adapter",
+        type=str,
+        default="linear",
+        help="Task adapter to use (linear, beads, github) (default: linear)",
+    )
     
     args = parser.parse_args()
     
@@ -154,7 +163,7 @@ def main():
         sys.exit(1)
     
     # Run async detection
-    asyncio.run(run_spec_change_detection(args.project_dir, args.model))
+    asyncio.run(run_spec_change_detection(args.project_dir, args.model, args.task_adapter))
 
 
 if __name__ == "__main__":
