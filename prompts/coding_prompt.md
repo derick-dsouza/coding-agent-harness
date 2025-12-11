@@ -375,12 +375,24 @@ ls .autocode-workers/claims/
 
 # If you see {issue-id}.claim files, those issues are being worked on
 # Skip them and pick a different TODO issue
+
+# Check if files are locked by another worker
+ls .autocode-workers/files/
+
+# File locks prevent concurrent edits to the same files
 ```
 
 Before claiming an issue:
 1. Check if `.autocode-workers/claims/{issue-id}.claim` exists
-2. If it exists, skip this issue - another worker is handling it
-3. If not, proceed to claim the issue (the harness handles atomic claiming)
+2. Read the issue's "Files to modify" section
+3. Check if any of those files have locks in `.autocode-workers/files/`
+4. If file conflicts exist, skip this issue - another worker is editing those files
+5. If no conflicts, proceed to claim (the harness handles atomic claiming)
+
+**File Conflict Example:**
+- Issue A modifies: `src/auth/login.ts`, `src/api/users.ts`
+- Issue B modifies: `src/api/users.ts`, `src/api/products.ts`
+- If worker 1 claims Issue A, worker 2 should skip Issue B (shared file `users.ts`)
 
 ### STEP 6: CLAIM THE ISSUE
 
