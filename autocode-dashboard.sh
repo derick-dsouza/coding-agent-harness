@@ -36,6 +36,14 @@ if [ ! -d "$FRONTEND_DIR" ]; then
   exit 1
 fi
 
+# Clean shutdown handler
+cleanup() {
+  echo -e "\n${CYAN}Dashboard shutting down...${RESET}"
+  exit 0
+}
+
+trap cleanup SIGINT SIGTERM
+
 while true; do
   NOW=$(date +%s)
   ELAPSED_FULL=$((NOW - LAST_FULL))
@@ -246,7 +254,14 @@ while true; do
   echo -e "${BLUE}Build Status:${RESET} $BUN_STATUS"
   echo
   echo -e "${CYAN}===================================================${RESET}"
+  echo -e "${CYAN}Press 'q' to quit${RESET}"
 
-  sleep $BEADS_INTERVAL
+  # Wait for BEADS_INTERVAL seconds, but check for 'q' keypress
+  for ((i=0; i<BEADS_INTERVAL; i++)); do
+    read -t 1 -n 1 key 2>/dev/null || true
+    if [[ "$key" == "q" || "$key" == "Q" ]]; then
+      cleanup
+    fi
+  done
 done
 
