@@ -449,12 +449,35 @@ Before claiming an issue:
 - Issue B modifies: `src/api/users.ts`, `src/api/products.ts`
 - If worker 1 claims Issue A, worker 2 should skip Issue B (shared file `users.ts`)
 
-### STEP 6: CLAIM THE ISSUE
+### STEP 6: CLAIM THE ISSUE (CRITICAL FOR MULTI-WORKER!)
 
-Before starting work, update the issue:
-- Set status to IN_PROGRESS
+**🚨 YOU MUST CLAIM BEFORE STARTING WORK! 🚨**
 
-This signals to any other agents (or humans watching) that this issue is being worked on.
+If multiple workers are running, you MUST use the claim system to prevent conflicts:
+
+```bash
+# Set harness directory
+export HARNESS_DIR="/Users/derickdsouza/Projects/development/coding-agent-harness"
+
+# 1. CHECK if the issue is available
+python3 $HARNESS_DIR/claim_issue.py check ISSUE_ID
+
+# 2. CLAIM the issue with files you'll modify
+python3 $HARNESS_DIR/claim_issue.py claim ISSUE_ID src/path/file1.vue src/path/file2.ts
+
+# 3. ONLY IF claim succeeds, mark as in-progress
+bd update ISSUE_ID --status in_progress  # For BEADS
+# OR use MCP update_issue for Linear/GitHub
+```
+
+**If claim fails:** Another worker has this issue. Pick a DIFFERENT issue!
+
+**After completing the issue, RELEASE the claim:**
+```bash
+python3 $HARNESS_DIR/claim_issue.py release ISSUE_ID
+```
+
+This signals to any other agents (or humans watching) that this issue is being worked on and prevents edit conflicts.
 
 ### STEP 7: IMPLEMENT THE FEATURE
 
@@ -581,6 +604,12 @@ label and either approve them (changing label to "audited") or create
 - No console errors
 - Code committed to git
 - Feature works end-to-end in the browser
+
+**🚨 RELEASE YOUR CLAIM after marking DONE:**
+```bash
+python3 $HARNESS_DIR/claim_issue.py release ISSUE_ID
+```
+This frees the issue and files for other workers.
 
 ### STEP 10: COMMIT YOUR PROGRESS
 

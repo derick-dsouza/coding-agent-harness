@@ -2,6 +2,39 @@
 
 BEADS is a git-backed, local task management system. Use the `bd` CLI command directly via bash.
 
+---
+
+## 🚨 CRITICAL: MULTI-WORKER COORDINATION (READ FIRST!) 🚨
+
+**STOP! Before picking up ANY issue, you MUST check and claim it first!**
+
+Multiple workers may be running in parallel. To prevent conflicts:
+
+```bash
+# SET THIS FIRST (required for claim commands)
+export HARNESS_DIR="/Users/derickdsouza/Projects/development/coding-agent-harness"
+
+# 1. BEFORE picking an issue - check if available
+python3 $HARNESS_DIR/claim_issue.py check ISSUE_ID
+
+# 2. CLAIM the issue WITH the files you'll modify
+python3 $HARNESS_DIR/claim_issue.py claim ISSUE_ID src/path/to/file1.vue src/path/to/file2.ts
+
+# 3. ONLY THEN start work
+bd update ISSUE_ID --status in_progress
+
+# 4. When DONE - release the claim
+bd update ISSUE_ID --status closed
+bd label add ISSUE_ID awaiting-audit  
+python3 $HARNESS_DIR/claim_issue.py release ISSUE_ID
+```
+
+**⚠️ If claim fails → Pick a DIFFERENT issue! Do NOT work on claimed issues!**
+
+See "MULTI-WORKER BEADS COORDINATION" section below for full details.
+
+---
+
 **Benefits:**
 - **No rate limits** - BEADS is local
 - **Git-backed** - All changes tracked in .beads/ directory
@@ -57,9 +90,11 @@ bd list --status closed --json | jq 'length'
 **For Coding Agents:**
 1. **List issues:** `bd list --status open --limit 100 --json`
 2. **Pick next issue:** Select from `open` status issues
-3. **Start work:** `bd update ISSUE_ID --status in_progress`
-4. **Implement the feature**
-5. **Mark done:** `bd update ISSUE_ID --status closed` and `bd label add ISSUE_ID awaiting-audit`
+3. **🚨 CLAIM FIRST:** `python3 $HARNESS_DIR/claim_issue.py claim ISSUE_ID files...` (REQUIRED!)
+4. **Start work:** `bd update ISSUE_ID --status in_progress`
+5. **Implement the feature**
+6. **Mark done:** `bd update ISSUE_ID --status closed` and `bd label add ISSUE_ID awaiting-audit`
+7. **Release claim:** `python3 $HARNESS_DIR/claim_issue.py release ISSUE_ID`
 
 **For Initializer Agents:**
 1. **Check for existing issues:** `bd list --status open --json`
