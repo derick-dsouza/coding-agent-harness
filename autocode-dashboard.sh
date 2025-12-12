@@ -63,10 +63,80 @@ while true; do
     "$( [ "$CLOSED_AWAITING_AUDIT" -gt 0 ] && echo -e "$YELLOW" || echo -e "$GREEN" )" "$CLOSED_AWAITING_AUDIT" "$RESET"
   printf "  Closed (audited)       : %s%s%s\n" \
     "$( [ "$CLOSED_AUDITED" -gt 0 ] && echo -e "$GREEN" || echo -e "$GREEN" )" "$CLOSED_AUDITED" "$RESET"
+  
+  # In-progress issues from BEADS
+  IN_PROGRESS_ISSUES=$(bd list --status in_progress --json 2>/dev/null | jq 'length' 2>/dev/null || echo "0")
+  printf "  In Progress           : %s%s%s\n" \
+    "$( [ "$IN_PROGRESS_ISSUES" -gt 0 ] && echo -e "$CYAN" || echo -e "$GREEN" )" "$IN_PROGRESS_ISSUES" "$RESET"
   echo
 
   # ——————————————————————————————————————————————
-  # Full check (TS + Bun)
+  # Worker Coordination Status
+  # ——————————————————————————————————————————————
+  WORKERS_DIR=".autocode-workers"
+  if [ -d "$WORKERS_DIR" ]; then
+    # Count active workers (lock files with recent heartbeats)
+    ACTIVE_WORKERS=0
+    NOW_TS=$(date +%s)
+    HEARTBEAT_TIMEOUT=90
+    
+    shopt -s nullglob
+    for lock_file in "$WORKERS_DIR"/worker-*.lock; do
+      if [ -f "$lock_file" ]; then
+        HEARTBEAT=$(jq -r '.heartbeat // 0' "$lock_file" 2>/dev/null | cut -d. -f1)
+        if [ -n "$HEARTBEAT" ] && [ "$HEARTBEAT" -gt 0 ]; then
+          AGE=$((NOW_TS - HEARTBEAT))
+          if [ "$AGE" -lt "$HEARTBEAT_TIMEOUT" ]; then
+            ACTIVE_WORKERS=$((ACTIVE_WORKERS + 1))
+          fi
+        fi
+      fi
+    done
+    shopt -u nullglob
+    
+    # Count claims
+    CLAIM_COUNT=0
+    if [ -d "$WORKERS_DIR/claims" ]; then
+      CLAIM_COUNT=$(ls -1 "$WORKERS_DIR/claims/"*.claim 2>/dev/null | wc -l | tr -d " " || echo "0")
+      [ -z "$CLAIM_COUNT" ] && CLAIM_COUNT=0
+    fi
+    
+    # Count file locks
+    FILE_LOCK_COUNT=0
+    if [ -d "$WORKERS_DIR/files" ]; then
+      FILE_LOCK_COUNT=$(ls -1 "$WORKERS_DIR/files/"*.lock 2>/dev/null | wc -l | tr -d " " || echo "0")
+      [ -z "$FILE_LOCK_COUNT" ] && FILE_LOCK_COUNT=0
+    fi
+    
+    echo -e "${BLUE}Worker Coordination:${RESET}"
+    printf "  Active Workers      : %s%s%s\n" \
+      "$( [ "$ACTIVE_WORKERS" -gt 1 ] && echo -e "$CYAN" || echo -e "$GREEN" )" "$ACTIVE_WORKERS" "$RESET"
+    printf "  Issue Claims        : %s%s%s\n" \
+      "$( [ "$CLAIM_COUNT" -gt 0 ] && echo -e "$YELLOW" || echo -e "$GREEN" )" "$CLAIM_COUNT" "$RESET"
+    printf "  File Locks          : %s%s%s\n" \
+      "$( [ "$FILE_LOCK_COUNT" -gt 0 ] && echo -e "$YELLOW" || echo -e "$GREEN" )" "$FILE_LOCK_COUNT" "$RESET"
+    
+    # Show claimed issues if any
+    if [ "$CLAIM_COUNT" -gt 0 ]; then
+      echo -e "  ${CYAN}Claimed Issues:${RESET}"
+      shopt -s nullglob
+      for claim_file in "$WORKERS_DIR/claims/"*.claim; do
+        if [ -f "$claim_file" ]; then
+          ISSUE_ID=$(jq -r '.issue_id // "unknown"' "$claim_file" 2>/dev/null)
+          WORKER_ID=$(jq -r '.worker_id // "unknown"' "$claim_file" 2>/dev/null)
+          echo -e "    - $ISSUE_ID (worker: ${WORKER_ID:0:8})"
+        fi
+      done
+      shopt -u nullglob
+    fi
+  else
+    echo -e "${BLUE}Worker Coordination:${RESET}"
+    echo -e "  ${YELLOW}No .autocode-workers directory${RESET}"
+  fi
+  echo
+
+  # ——————————————————————————————————————————————
+  # Full check (TS + Build)
   # ——————————————————————————————————————————————
   if [ $ELAPSED_FULL -ge $FULL_INTERVAL ]; then
     cd "$FRONTEND_DIR"
