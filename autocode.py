@@ -17,35 +17,46 @@ import asyncio
 import json
 import os
 from pathlib import Path
+from typing import Any
 
 from agent import run_autonomous_agent
+from client import (
+    DEFAULTS,
+    DEFAULT_AGENT_SDK_KEY,
+    get_api_key_env_for_sdk,
+    get_default_model_for_sdk,
+)
 
 
-# Load defaults configuration
-def load_defaults():
-    """Load autocode-defaults.json from script directory."""
-    script_dir = Path(__file__).parent
-    defaults_path = script_dir / "autocode-defaults.json"
-    
-    if defaults_path.exists():
-        with open(defaults_path) as f:
-            return json.load(f)
-    return {}
-
-
-DEFAULTS = load_defaults()
-
-# Configuration
-# Model defaults - three separate models for different session types
-# This balances quality (Opus for planning/audit) with cost/speed (Sonnet for implementation)
-DEFAULT_INITIALIZER_MODEL = "claude-opus-4-5-20251101"
-DEFAULT_CODING_MODEL = "claude-sonnet-4-5-20250929"
-DEFAULT_AUDIT_MODEL = "claude-opus-4-5-20251101"  # Default: same as initializer
+# Configuration defaults pulled from autocode-defaults.json
+DEFAULT_INITIALIZER_MODEL = get_default_model_for_sdk(DEFAULT_AGENT_SDK_KEY, "initializer") or "claude-opus-4-5-20251101"
+DEFAULT_CODING_MODEL = get_default_model_for_sdk(DEFAULT_AGENT_SDK_KEY, "coding") or "claude-sonnet-4-5-20250929"
+DEFAULT_AUDIT_MODEL = get_default_model_for_sdk(DEFAULT_AGENT_SDK_KEY, "audit") or "claude-opus-4-5-20251101"
 CONFIG_FILE = ".autocode-config.json"
 DEFAULT_SPEC_FILE = "app_spec.txt"
 
 # Get API key environment variable name from defaults
-API_KEY_ENV_VAR = DEFAULTS.get("agent_sdks", {}).get("claude-agent-sdk", {}).get("api_key_env", "CLAUDE_CODE_OAUTH_TOKEN")
+API_KEY_ENV_VAR = get_api_key_env_for_sdk(DEFAULT_AGENT_SDK_KEY) or "CLAUDE_CODE_OAUTH_TOKEN"
+
+
+def resolve_model_for_sdk(raw_model: str | None, sdk_key: str, role: str, default_fallback: str) -> str:
+    """
+    Normalize a model name for a given SDK and role.
+
+    Supports aliases defined in autocode-defaults.json, falls back to SDK defaults,
+    then to the provided default_fallback.
+    """
+    model_map = DEFAULTS.get("agent_sdks", {}).get(sdk_key, {}).get("models", {}) or {}
+    if raw_model in model_map:
+        return model_map[raw_model]
+    if raw_model:
+        return raw_model
+
+    sdk_default = get_default_model_for_sdk(sdk_key, role)
+    if sdk_default:
+        return sdk_default
+
+    return default_fallback
 
 
 def parse_args() -> argparse.Namespace:
@@ -117,11 +128,12 @@ Config File (.autocode-config.json):
   Priority: CLI arguments > config file > defaults
 
 Environment Variables:
-  {api_key_var}    Claude Code OAuth token (required)
-  LINEAR_API_KEY             Linear API key (required for Linear adapter)
-  TASK_ADAPTER_TYPE          Task management adapter to use (default: linear)
-                             Options: linear, github, beads
-        """.format(api_key_var=API_KEY_ENV_VAR),
+  {api_key_var}    Default agent SDK token (for {default_agent_sdk}; override per SDK as needed)
+  AGENT_SDK_SIMULATE        Force simulation for CLI SDKs (optional)
+  LINEAR_API_KEY            Linear API key (required for Linear adapter)
+  TASK_ADAPTER_TYPE         Task management adapter to use (default: linear)
+                            Options: linear, github, beads
+        """.format(api_key_var=API_KEY_ENV_VAR, default_agent_sdk=DEFAULT_AGENT_SDK_KEY),
     )
 
     parser.add_argument(
@@ -164,6 +176,36 @@ Environment Variables:
         type=str,
         default=None,
         help="Claude model for all sessions (overrides --initializer-model, --coding-model, and --audit-model)",
+    )
+
+    parser.add_argument(
+        "--agent-sdk",
+        type=str,
+        default=None,
+        help="Agent SDK to use for all sessions (default from autocode-defaults.json).",
+    )
+    parser.add_argument(
+        "--initializer-sdk",
+        type=str,
+        default=None,
+        help="Agent SDK override for initializer session (defaults to --agent-sdk).",
+    )
+    parser.add_argument(
+        "--coding-sdk",
+        type=str,
+        default=None,
+        help="Agent SDK override for coding sessions (defaults to --agent-sdk).",
+    )
+    parser.add_argument(
+        "--audit-sdk",
+        type=str,
+        default=None,
+        help="Agent SDK override for audit sessions (defaults to --agent-sdk).",
+    )
+    parser.add_argument(
+        "--simulate-agent-sdk",
+        action="store_true",
+        help="Force simulation mode for CLI-based SDKs (useful for local testing).",
     )
 
     parser.add_argument(
@@ -220,74 +262,45 @@ def resolve_config(
     Returns:
         Dict with resolved values, or None if validation fails.
     """
-    resolved = {}
+    resolved: dict[str, Any] = {}
 
-    # Resolve models: CLI > config > defaults
-    # If --model is specified, use it for all three (initializer, coding, audit)
-    if args.model is not None:
-        resolved["initializer_model"] = args.model
-        resolved["coding_model"] = args.model
-        resolved["audit_model"] = args.model
-        print(f"Using single model for all sessions: {args.model}")
-    else:
-        # Resolve initializer model
-        if args.initializer_model is not None:
-            resolved["initializer_model"] = args.initializer_model
-            print(f"Using initializer model from CLI: {args.initializer_model}")
-        elif "initializer_model" in config:
-            resolved["initializer_model"] = config["initializer_model"]
-            print(f"Using initializer model from {CONFIG_FILE}: {config['initializer_model']}")
-        elif "model" in config:
-            # Fallback to single model from config
-            resolved["initializer_model"] = config["model"]
-            print(f"Using model from {CONFIG_FILE} for initializer: {config['model']}")
-        else:
-            resolved["initializer_model"] = DEFAULT_INITIALIZER_MODEL
-            print(f"Using default initializer model: {DEFAULT_INITIALIZER_MODEL}")
+    # Resolve agent SDK selection
+    default_sdk = DEFAULTS.get("defaults", {}).get("agent_sdk", DEFAULT_AGENT_SDK_KEY)
+    base_sdk = args.agent_sdk or config.get("agent_sdk") or default_sdk
+    initializer_sdk = args.initializer_sdk or config.get("initializer_agent_sdk") or base_sdk
+    coding_sdk = args.coding_sdk or config.get("coding_agent_sdk") or base_sdk
+    audit_sdk = args.audit_sdk or config.get("audit_agent_sdk") or base_sdk
 
-        # Resolve coding model
-        if args.coding_model is not None:
-            resolved["coding_model"] = args.coding_model
-            print(f"Using coding model from CLI: {args.coding_model}")
-        elif "coding_model" in config:
-            resolved["coding_model"] = config["coding_model"]
-            print(f"Using coding model from {CONFIG_FILE}: {config['coding_model']}")
-        elif "model" in config:
-            # Fallback to single model from config
-            resolved["coding_model"] = config["model"]
-            print(f"Using model from {CONFIG_FILE} for coding: {config['model']}")
-        else:
-            resolved["coding_model"] = DEFAULT_CODING_MODEL
-            print(f"Using default coding model: {DEFAULT_CODING_MODEL}")
+    resolved["agent_sdks"] = {
+        "default": base_sdk,
+        "initializer": initializer_sdk,
+        "coding": coding_sdk,
+        "audit": audit_sdk,
+    }
+    resolved["simulate_agent_sdk"] = bool(args.simulate_agent_sdk or config.get("simulate_agent_sdk"))
 
-        # Resolve audit model
-        if args.audit_model is not None:
-            resolved["audit_model"] = args.audit_model
-            print(f"Using audit model from CLI: {args.audit_model}")
-        elif "audit_model" in config:
-            resolved["audit_model"] = config["audit_model"]
-            print(f"Using audit model from {CONFIG_FILE}: {config['audit_model']}")
-        elif "model" in config:
-            # Fallback to single model from config
-            resolved["audit_model"] = config["model"]
-            print(f"Using model from {CONFIG_FILE} for audit: {config['model']}")
-        else:
-            resolved["audit_model"] = DEFAULT_AUDIT_MODEL
-            print(f"Using default audit model: {DEFAULT_AUDIT_MODEL}")
+    # Resolve models: CLI > config > defaults (per SDK)
+    unified_model = args.model or config.get("model")
+    initializer_model_raw = args.initializer_model or config.get("initializer_model") or unified_model
+    coding_model_raw = args.coding_model or config.get("coding_model") or unified_model
+    audit_model_raw = args.audit_model or config.get("audit_model") or unified_model
 
-    # Print model summary
-    all_same = (
-        resolved["initializer_model"] == resolved["coding_model"] == resolved["audit_model"]
+    resolved["initializer_model"] = resolve_model_for_sdk(
+        initializer_model_raw, initializer_sdk, "initializer", DEFAULT_INITIALIZER_MODEL
     )
-    
-    if all_same:
-        print(f"\n📊 Model Strategy: Single model for all sessions")
-        print(f"   Model: {resolved['initializer_model']}")
-    else:
-        print(f"\n📊 Model Strategy: Multi-model optimization")
-        print(f"   Initializer: {resolved['initializer_model']} (high-quality planning)")
-        print(f"   Coding: {resolved['coding_model']} (cost-effective implementation)")
-        print(f"   Audit: {resolved['audit_model']} (quality assurance)")
+    resolved["coding_model"] = resolve_model_for_sdk(
+        coding_model_raw, coding_sdk, "coding", DEFAULT_CODING_MODEL
+    )
+    resolved["audit_model"] = resolve_model_for_sdk(
+        audit_model_raw, audit_sdk, "audit", DEFAULT_AUDIT_MODEL
+    )
+
+    print(f"\n📊 Agent SDK Strategy")
+    print(f"   Initializer: {initializer_sdk} (model: {resolved['initializer_model']})")
+    print(f"   Coding:      {coding_sdk} (model: {resolved['coding_model']})")
+    print(f"   Audit:       {audit_sdk} (model: {resolved['audit_model']})")
+    if resolved["simulate_agent_sdk"]:
+        print("   Simulation:  Enabled for CLI agents (AGENT_SDK_SIMULATE or --simulate-agent-sdk)")
 
     # Resolve max_iterations: CLI > config > default (None = unlimited)
     if args.max_iterations is not None:
@@ -324,7 +337,7 @@ def resolve_config(
             print("\nThe spec file contains no requirements. Options:")
             print("  1. Add requirements to the spec file and run again")
             print("  2. Continue anyway (agent will only work on existing open issues)")
-            
+
             # Check if there are existing open issues
             task_project_path = project_dir / ".task_project.json"
             if task_project_path.exists():
@@ -334,14 +347,14 @@ def resolve_config(
                     if total_issues > 0:
                         print(f"\n  📋 Found {total_issues} existing issues in task manager")
                         print("     Agent can work on open issues without a spec file")
-            
+
             response = input("\nContinue with empty spec file? (y/n): ").strip().lower()
             if response != 'y':
                 print("\nExiting. Please add requirements to the spec file.")
                 return None
-            
+
             print(f"\n✅ Continuing with empty spec file")
-        
+
         resolved["spec_file"] = spec_file
         print(f"Using spec_file from {spec_source}: {spec_file}")
     else:
@@ -382,14 +395,6 @@ def resolve_config(
 def main() -> None:
     """Main entry point."""
     args = parse_args()
-
-    # Check for Claude Code OAuth token
-    if not os.environ.get(API_KEY_ENV_VAR):
-        print(f"Error: {API_KEY_ENV_VAR} environment variable not set")
-        print("\nRun 'claude setup-token' after installing the Claude Code CLI.")
-        print("\nThen set it:")
-        print(f"  export {API_KEY_ENV_VAR}='your-token-here'")
-        return
 
     # Resolve project directory
     project_dir = args.project_dir
@@ -451,6 +456,10 @@ def main() -> None:
         args.initializer_model,
         args.coding_model,
         args.audit_model,
+        args.agent_sdk,
+        args.initializer_sdk,
+        args.coding_sdk,
+        args.audit_sdk,
         args.task_adapter,
         args.max_iterations
     ]):
@@ -507,6 +516,29 @@ def main() -> None:
     if resolved is None:
         return
 
+    # Validate agent SDK credentials (skip CLI agents when simulation is enabled)
+    selected_sdks = {
+        resolved["agent_sdks"]["initializer"],
+        resolved["agent_sdks"]["coding"],
+        resolved["agent_sdks"]["audit"],
+    }
+    missing_envs = []
+    for sdk_key in selected_sdks:
+        env_var = get_api_key_env_for_sdk(sdk_key)
+        if not env_var:
+            continue
+        if sdk_key != "claude-agent-sdk" and resolved.get("simulate_agent_sdk"):
+            continue
+        if not os.environ.get(env_var):
+            missing_envs.append((sdk_key, env_var))
+
+    if missing_envs:
+        print("Error: Missing environment variables for selected agent SDKs:")
+        for sdk_key, env_var in missing_envs:
+            print(f"  - {sdk_key}: {env_var}")
+        print("\nSet the required variables or enable --simulate-agent-sdk for CLI agents.")
+        return
+
     # Check for task manager-specific requirements
     task_manager = resolved.get("task_manager", "linear")
     task_manager_config = resolved.get("task_manager_config", {})
@@ -558,6 +590,8 @@ def main() -> None:
                 initializer_model=resolved["initializer_model"],
                 coding_model=resolved["coding_model"],
                 audit_model=resolved["audit_model"],
+                agent_sdks=resolved["agent_sdks"],
+                simulate_agent_sdk=resolved["simulate_agent_sdk"],
                 task_adapter=task_manager,
                 max_iterations=resolved["max_iterations"],
                 verbose=args.verbose,

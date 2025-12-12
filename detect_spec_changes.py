@@ -23,6 +23,8 @@ async def run_spec_change_detection(
     project_dir: Path,
     model: str = "claude-opus-4-20250514",
     task_adapter: str = "linear",
+    agent_sdk: str | None = None,
+    simulate_agent_sdk: bool = False,
 ) -> None:
     """
     Run the spec change detector agent.
@@ -32,6 +34,8 @@ async def run_spec_change_detection(
         model: Claude model to use
         task_adapter: Task management adapter (linear, beads, github)
         model: Claude model to use (default: Opus for analysis quality)
+        agent_sdk: Agent SDK to use for this run
+        simulate_agent_sdk: Force simulation for CLI adapters
     """
     print("\n" + "=" * 70)
     print("  SPEC CHANGE DETECTION")
@@ -87,7 +91,14 @@ async def run_spec_change_detection(
     prompt = f"{prompt_template}\n\n---\n\n## APP SPECIFICATION\n\n{spec_content}"
     
     # Create client
-    client = create_client(project_dir, model, task_adapter)
+    client = create_client(
+        project_dir,
+        model,
+        task_adapter,
+        agent_sdk=agent_sdk,
+        session_type="spec_change",
+        simulate=simulate_agent_sdk,
+    )
     
     print("Analyzing spec for changes...\n")
     print("-" * 70)
@@ -149,6 +160,17 @@ def main():
         help="Claude model to use (default: claude-opus-4-20250514)",
     )
     parser.add_argument(
+        "--agent-sdk",
+        type=str,
+        default=None,
+        help="Agent SDK to use for this run (default from autocode-defaults.json).",
+    )
+    parser.add_argument(
+        "--simulate-agent-sdk",
+        action="store_true",
+        help="Force simulation mode for CLI-based SDKs.",
+    )
+    parser.add_argument(
         "--task-adapter",
         type=str,
         default="linear",
@@ -163,7 +185,15 @@ def main():
         sys.exit(1)
     
     # Run async detection
-    asyncio.run(run_spec_change_detection(args.project_dir, args.model, args.task_adapter))
+    asyncio.run(
+        run_spec_change_detection(
+            args.project_dir,
+            args.model,
+            args.task_adapter,
+            agent_sdk=args.agent_sdk,
+            simulate_agent_sdk=args.simulate_agent_sdk,
+        )
+    )
 
 
 if __name__ == "__main__":

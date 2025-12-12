@@ -18,8 +18,6 @@ import time
 from pathlib import Path
 from typing import Optional
 
-from claude_agent_sdk import ClaudeSDKClient
-
 # Global shutdown flag
 _shutdown_requested = False
 # Global worker coordinator reference for signal handler cleanup
@@ -569,16 +567,16 @@ def should_run_audit(project_dir: Path) -> bool:
 
 
 async def run_agent_session(
-    client: ClaudeSDKClient,
+    client,
     message: str,
     project_dir: Path,
     verbose: bool = False,
 ) -> tuple[str, str]:
     """
-    Run a single agent session using Claude Agent SDK.
+    Run a single agent session using the configured Agent SDK.
 
     Args:
-        client: Claude SDK client
+        client: Agent SDK client implementing query/receive_response
         message: The prompt to send
         project_dir: Project directory path
         verbose: Enable verbose output including JSON dumps
@@ -698,6 +696,8 @@ async def run_autonomous_agent(
     initializer_model: str,
     coding_model: str,
     audit_model: str,
+    agent_sdks: Optional[dict] = None,
+    simulate_agent_sdk: bool = False,
     task_adapter: str = "linear",
     max_iterations: Optional[int] = None,
     verbose: bool = False,
@@ -711,6 +711,8 @@ async def run_autonomous_agent(
         initializer_model: Claude model for initialization
         coding_model: Claude model for coding sessions
         audit_model: Claude model for audit sessions
+        agent_sdks: Mapping of agent SDK per session type (initializer/coding/audit)
+        simulate_agent_sdk: Force simulation mode for CLI SDKs
         task_adapter: Task management adapter (linear, beads, github)
         max_iterations: Maximum number of iterations (None for unlimited)
         verbose: Enable verbose output including JSON dumps
@@ -718,12 +720,24 @@ async def run_autonomous_agent(
     print("\n" + "=" * 70)
     print("  AUTONOMOUS CODING AGENT DEMO")
     print("=" * 70)
+
+    agent_sdk_map = dict(agent_sdks or {})
+    default_agent_sdk = agent_sdk_map.get("default", "claude-agent-sdk")
+    agent_sdk_map.setdefault("initializer", default_agent_sdk)
+    agent_sdk_map.setdefault("coding", default_agent_sdk)
+    agent_sdk_map.setdefault("audit", default_agent_sdk)
+
     print(f"\nProject directory: {project_dir}")
     print(f"Spec file: {spec_file}")
     print(f"Task adapter: {task_adapter}")
     print(f"Initializer model: {initializer_model}")
     print(f"Coding model: {coding_model}")
     print(f"Audit model: {audit_model}")
+    print(f"Initializer SDK: {agent_sdk_map['initializer']}")
+    print(f"Coding SDK: {agent_sdk_map['coding']}")
+    print(f"Audit SDK: {agent_sdk_map['audit']}")
+    if simulate_agent_sdk:
+        print("Agent SDK simulation: Enabled for CLI adapters")
     if max_iterations:
         print(f"Max iterations: {max_iterations}")
     else:
@@ -834,18 +848,22 @@ async def run_autonomous_agent(
             model = audit_model
             prompt = get_audit_prompt(spec_file, task_adapter)
             session_type = "AUDIT"
+            session_role_key = "audit"
             print("=" * 70)
             print("  🔍 AUDIT SESSION - Quality Assurance Review")
             print("=" * 70)
             print(f"Reviewing features with '{AUDIT_LABEL_AWAITING}' label")
-            print(f"Using audit model: {model}\n")
+            print(f"Using audit model: {model}")
+            print(f"Using audit SDK: {agent_sdk_map.get(session_role_key, default_agent_sdk)}\n")
             
         elif is_first_run:
             # Initialization session: Set up project and create issues
             model = initializer_model
             prompt = get_initializer_prompt(spec_file, task_adapter)
             session_type = "INITIALIZATION"
-            print(f"Using initializer model: {model}\n")
+            session_role_key = "initializer"
+            print(f"Using initializer model: {model}")
+            print(f"Using initializer SDK: {agent_sdk_map.get(session_role_key, default_agent_sdk)}\n")
             is_first_run = False  # Only use initializer once
             
         else:
@@ -853,10 +871,20 @@ async def run_autonomous_agent(
             model = coding_model
             prompt = get_coding_prompt(spec_file, task_adapter)
             session_type = "CODING"
-            print(f"Using coding model: {model}\n")
+            session_role_key = "coding"
+            print(f"Using coding model: {model}")
+            print(f"Using coding SDK: {agent_sdk_map.get(session_role_key, default_agent_sdk)}\n")
 
         # Create client (fresh context)
-        client = create_client(project_dir, model, task_adapter)
+        agent_sdk_key = agent_sdk_map.get(session_role_key, default_agent_sdk)
+        client = create_client(
+            project_dir,
+            model,
+            task_adapter,
+            agent_sdk=agent_sdk_key,
+            session_type=session_role_key,
+            simulate=simulate_agent_sdk,
+        )
 
         # Run session with async context manager
         async with client:
