@@ -37,7 +37,7 @@ while true; do
   # Clear screen
   clear
 
-  echo -e "${BLUE}${BOLD}==================== DASHBOARD ====================${RESET}"
+  echo -e "${BLUE}${BOLD}================ AUTOCODE DASHBOARD ================${RESET}"
   echo -e "${CYAN}Updated:${RESET} $(date)"
   echo -e "${CYAN}Frontend Dir:${RESET} $FRONTEND_DIR"
   echo -e "${CYAN}Refresh:${RESET} Issues every ${BEADS_INTERVAL}s, Full check every ${FULL_INTERVAL}s"
@@ -144,9 +144,9 @@ while true; do
     # TypeScript errors (use node_modules/.bin/tsc or npx)
     TMP_OUT=$(mktemp)
     if [ -f node_modules/.bin/tsc ]; then
-      node_modules/.bin/tsc --noEmit 2>&1 > "$TMP_OUT" || true
+      node_modules/.bin/tsc --noEmit > "$TMP_OUT" 2>&1 || true
     elif [ -f ../node_modules/.bin/tsc ]; then
-      ../node_modules/.bin/tsc --noEmit 2>&1 > "$TMP_OUT" || true
+      ../node_modules/.bin/tsc --noEmit > "$TMP_OUT" 2>&1 || true
     else
       echo "tsc not found in node_modules" > "$TMP_OUT"
     fi
@@ -159,10 +159,10 @@ while true; do
 
     rm "$TMP_OUT"
 
-    # Build check (npm run build)
+    # Build check (npm run build) - suppress all output
     if [ -f package.json ]; then
       BUILD_OUT=$(mktemp)
-      npm run build 2>&1 > "$BUILD_OUT" || true
+      npm run build > "$BUILD_OUT" 2>&1 || true
       BUILD_EXIT=$?
       if [ $BUILD_EXIT -eq 0 ]; then
         BUN_STATUS="${GREEN}Succeeded${RESET}"
