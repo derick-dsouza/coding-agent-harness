@@ -419,13 +419,13 @@ class TaskManagementAdapter(ABC):
         
         if project_file.exists():
             try:
-                with open(project_file, 'r') as f:
+                with open(project_file, 'r', encoding='utf-8') as f:
                     data = json.load(f)
                 
                 # Increment audit counter
                 data["features_awaiting_audit"] = data.get("features_awaiting_audit", 0) + 1
                 
-                with open(project_file, 'w') as f:
+                with open(project_file, 'w', encoding='utf-8') as f:
                     json.dump(data, f, indent=2)
             except Exception as e:
                 print(f"Warning: Could not update audit counter: {e}")

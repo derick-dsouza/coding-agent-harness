@@ -250,9 +250,9 @@ def load_project_state(project_dir: Path) -> dict:
         return {}
     
     try:
-        with open(state_file, 'r') as f:
+        with open(state_file, 'r', encoding='utf-8') as f:
             return json.load(f)
-    except (json.JSONDecodeError, IOError):
+    except (json.JSONDecodeError, IOError, UnicodeDecodeError):
         return {}
 
 

@@ -328,7 +328,7 @@ def resolve_config(
             # Check if there are existing open issues
             task_project_path = project_dir / ".task_project.json"
             if task_project_path.exists():
-                with open(task_project_path) as f:
+                with open(task_project_path, encoding='utf-8') as f:
                     task_data = json.load(f)
                     total_issues = task_data.get("total_issues_created", 0)
                     if total_issues > 0:
@@ -418,7 +418,7 @@ def main() -> None:
     # Check for task manager mismatch
     if config_path.exists() and task_project_path.exists():
         try:
-            with open(task_project_path) as f:
+            with open(task_project_path, encoding='utf-8') as f:
                 task_data = json.load(f)
             
             config_adapter = config.get("task_adapter", "linear")
