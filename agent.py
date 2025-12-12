@@ -9,6 +9,7 @@ Supports multiple task management backends (Linear, Jira, GitHub) via adapter pa
 import asyncio
 import os
 import re
+import signal
 import sys
 import select
 import termios
@@ -21,6 +22,8 @@ from claude_agent_sdk import ClaudeSDKClient
 
 # Global shutdown flag
 _shutdown_requested = False
+# Global worker coordinator reference for signal handler cleanup
+_worker_coordinator = None
 
 from client import create_client
 from progress import print_session_header, print_progress_summary, is_task_initialized
@@ -42,6 +45,28 @@ AUTO_CONTINUE_DELAY_SECONDS = 3
 AUDIT_INTERVAL = 5  # Trigger audit every 5 completed features (was 10)
 AUDIT_LABEL_AWAITING = "awaiting-audit"
 AUDIT_LABEL_AUDITED = "audited"
+
+
+def _signal_handler(signum, frame):
+    """
+    Handle Ctrl+C (SIGINT) for graceful shutdown.
+    Cleans up worker coordinator claims/locks before exiting.
+    """
+    global _shutdown_requested, _worker_coordinator
+    
+    print("\n\n🛑 Ctrl+C received. Shutting down gracefully...")
+    _shutdown_requested = True
+    
+    # Clean up worker coordinator if it exists
+    if _worker_coordinator is not None:
+        try:
+            print("   Cleaning up worker claims and locks...")
+            _worker_coordinator.cleanup()
+            print("   ✅ Cleanup complete")
+        except Exception as e:
+            print(f"   ⚠️  Cleanup error: {e}")
+    
+    sys.exit(0)
 
 
 def check_for_quit_key() -> bool:
@@ -706,9 +731,13 @@ async def run_autonomous_agent(
     print()
 
     # Initialize worker coordinator for multi-instance support
-    global worker_coordinator
+    global worker_coordinator, _worker_coordinator
     worker_coordinator = WorkerCoordinator(project_dir)
     worker_coordinator.register()
+    _worker_coordinator = worker_coordinator  # Set global for signal handler
+    
+    # Register signal handler for graceful Ctrl+C shutdown
+    signal.signal(signal.SIGINT, _signal_handler)
     
     # Start heartbeat background task
     heartbeat_task = asyncio.create_task(worker_coordinator.heartbeat_loop())
@@ -857,7 +886,7 @@ async def run_autonomous_agent(
 
         # Handle status
         if status == "continue":
-            print(f"\nAgent will auto-continue in {AUTO_CONTINUE_DELAY_SECONDS}s... (press 'q' to quit)")
+            print(f"\nAgent will auto-continue in {AUTO_CONTINUE_DELAY_SECONDS}s... (press 'q' to quit, or Ctrl+C anytime)")
             
             # Check if task management needs initialization
             if task_init_handler.is_task_uninitialized(project_dir):
@@ -876,7 +905,7 @@ async def run_autonomous_agent(
 
         elif status == "error":
             print("\nSession encountered an error")
-            print("Will retry with a fresh session... (press 'q' to quit)")
+            print("Will retry with a fresh session... (press 'q' to quit, or Ctrl+C anytime)")
             if not await interruptible_sleep(AUTO_CONTINUE_DELAY_SECONDS):
                 print("\n\n🛑 Quit requested. Shutting down gracefully...")
                 break
@@ -888,7 +917,7 @@ async def run_autonomous_agent(
 
         # Small delay between sessions
         if max_iterations is None or iteration < max_iterations:
-            print("\nPreparing next session... (press 'q' to quit)\n")
+            print("\nPreparing next session... (press 'q' to quit, or Ctrl+C anytime)\n")
             if not await interruptible_sleep(1):
                 print("\n\n🛑 Quit requested. Shutting down gracefully...")
                 break
