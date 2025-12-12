@@ -276,9 +276,36 @@ All BEADS project data is stored in `.task_project.json`:
   "workspace": "default",
   "initialized": true,
   "issues_created": 50,
-  "features_awaiting_audit": 0,
-  "legacy_done_without_audit": 0
+  "issues_closed": 45,
+  "features_awaiting_audit": 40,
+  "features_audited": 5,
+  "legacy_done_without_audit": 0,
+  "verification_status": {
+    "project_marked_complete": "FALSE - 40 issues still awaiting audit",
+    "audit_status": "IN PROGRESS - 5/45 features audited"
+  }
 }
+```
+
+**🚨 CRITICAL: Audit Tracking Fields (MUST UPDATE!):**
+
+| Field | Description | Update When |
+|-------|-------------|-------------|
+| `features_awaiting_audit` | Count of issues with "awaiting-audit" label | After closing any issue |
+| `features_audited` | Count of issues with "audited" label | After audit session |
+| `verification_status.project_marked_complete` | TRUE only when ALL audits pass | Never set TRUE if awaiting_audit > 0 |
+
+**To sync counts with actual BEADS data:**
+```bash
+# Get actual counts from BEADS
+AWAITING=$(bd list --status closed --label awaiting-audit --json | jq 'length')
+AUDITED=$(bd list --status closed --label audited --json | jq 'length')
+NO_LABELS=$(bd list --status closed --no-labels --json | jq 'length')
+
+# Update .task_project.json
+jq --argjson await "$AWAITING" --argjson audit "$AUDITED" --argjson legacy "$NO_LABELS" \
+  '.features_awaiting_audit = $await | .features_audited = $audit | .legacy_done_without_audit = $legacy' \
+  .task_project.json > tmp.$$.json && mv tmp.$$.json .task_project.json
 ```
 
 **Notes:**
@@ -287,3 +314,4 @@ All BEADS project data is stored in `.task_project.json`:
 - Use `--json` flag for programmatic parsing
 - Parse JSON with `jq` for filtering/counting
 - `bd show` returns an **array** - always use `.[0]` when accessing single issue properties
+- **Closed ≠ Complete!** A project is only complete when features_awaiting_audit = 0

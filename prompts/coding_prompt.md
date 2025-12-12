@@ -797,6 +797,41 @@ Before context fills up:
 
 ---
 
+## 🚨 PROJECT COMPLETION CRITERIA (CRITICAL!)
+
+**A project is NOT complete until ALL of the following are true:**
+
+| Criterion | Required |
+|-----------|----------|
+| All issues closed | ✅ Yes |
+| All closed issues have "awaiting-audit" OR "audited" label | ✅ Yes |
+| **features_awaiting_audit = 0** | ✅ Yes |
+| **All features have "audited" label** | ✅ Yes |
+| TypeScript/lint errors = 0 (or within acceptable threshold) | ✅ Yes |
+| Build succeeds | ✅ Yes |
+
+**NEVER mark a project as "100% COMPLETE" if:**
+- ❌ There are issues awaiting audit (features_awaiting_audit > 0)
+- ❌ There are issues without audit labels (neither "awaiting-audit" nor "audited")
+- ❌ TypeScript errors remain above the acceptable threshold
+- ❌ The build is failing
+
+**When updating `.task_project.json`:**
+```json
+{
+  "features_awaiting_audit": 70,  // MUST track this!
+  "features_audited": 0,          // MUST track this!
+  "verification_status": {
+    "project_marked_complete": "FALSE - 70 issues still awaiting audit",
+    "audit_status": "INCOMPLETE - 0/70 features audited"
+  }
+}
+```
+
+**Closed ≠ Complete!** An issue is only truly complete after it passes audit.
+
+---
+
 ## LINEAR WORKFLOW RULES
 
 **Status Transitions:**
