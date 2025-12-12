@@ -30,6 +30,8 @@ ALLOWED_COMMANDS = {
     # Node.js development
     "npm",
     "node",
+    # Python
+    "python3",  # For harness scripts like claim_issue.py
     # Version control
     "git",
     # Task management
