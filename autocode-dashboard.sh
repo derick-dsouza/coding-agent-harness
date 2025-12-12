@@ -26,10 +26,18 @@ NON_TEST_TSC_ERRORS="--"
 BUN_STATUS="${YELLOW}pending${RESET}"
 LAST_BUILD_CHECK="never"
 
-# Previous run values for comparison
+# Previous run values for comparison (TypeScript)
 PREV_TOTAL_TSC_ERRORS=""
 PREV_TEST_TSC_ERRORS=""
 PREV_NON_TEST_TSC_ERRORS=""
+
+# Initial BEADS counts (captured at startup)
+INIT_TOTAL_ISSUES=""
+INIT_OPEN_ISSUES=""
+INIT_CLOSED_NO_LABELS=""
+INIT_CLOSED_AWAITING_AUDIT=""
+INIT_CLOSED_AUDITED=""
+INIT_IN_PROGRESS_ISSUES=""
 
 if [ ! -d "$FRONTEND_DIR" ]; then
   echo -e "${RED}Error:${RESET} frontend directory '$FRONTEND_DIR' not found!"
@@ -134,22 +142,59 @@ while true; do
   CLOSED_NO_LABELS=$(bd list --status closed --no-labels --json 2>/dev/null | jq 'length')
   CLOSED_AWAITING_AUDIT=$(bd list --status closed --label "$LABEL_AWAITING_AUDIT" --json 2>/dev/null | jq 'length')
   CLOSED_AUDITED=$(bd list --status closed --label "$LABEL_AUDITED" --json 2>/dev/null | jq 'length')
+  IN_PROGRESS_ISSUES=$(bd list --status in_progress --json 2>/dev/null | jq 'length' 2>/dev/null || echo "0")
+
+  # Capture initial values on first run
+  if [ -z "$INIT_TOTAL_ISSUES" ]; then
+    INIT_TOTAL_ISSUES="$TOTAL_ISSUES"
+    INIT_OPEN_ISSUES="$OPEN_ISSUES"
+    INIT_CLOSED_NO_LABELS="$CLOSED_NO_LABELS"
+    INIT_CLOSED_AWAITING_AUDIT="$CLOSED_AWAITING_AUDIT"
+    INIT_CLOSED_AUDITED="$CLOSED_AUDITED"
+    INIT_IN_PROGRESS_ISSUES="$IN_PROGRESS_ISSUES"
+  fi
+
+  # Helper function to format BEADS delta
+  format_beads_delta() {
+    local curr="$1"
+    local init="$2"
+    if [ -n "$init" ] && [[ "$curr" =~ ^[0-9]+$ ]] && [[ "$init" =~ ^[0-9]+$ ]]; then
+      local diff=$((curr - init))
+      if [ $diff -lt 0 ]; then
+        echo "${GREEN}(was $init, ${diff})${RESET}"
+      elif [ $diff -gt 0 ]; then
+        echo "${CYAN}(was $init, +${diff})${RESET}"
+      else
+        echo ""
+      fi
+    else
+      echo ""
+    fi
+  }
 
   echo -e "${BLUE}Beads Issues:${RESET}"
   COLOR=$( [ "$TOTAL_ISSUES" -gt 0 ] && echo "$YELLOW" || echo "$GREEN" )
-  echo -e "  Total                 : ${COLOR}${TOTAL_ISSUES}${RESET}"
-  COLOR=$( [ "$OPEN_ISSUES" -gt 0 ] && echo "$RED" || echo "$GREEN" )
-  echo -e "  Open                  : ${COLOR}${OPEN_ISSUES}${RESET}"
-  COLOR=$( [ "$CLOSED_NO_LABELS" -gt 0 ] && echo "$YELLOW" || echo "$GREEN" )
-  echo -e "  Closed (no labels)    : ${COLOR}${CLOSED_NO_LABELS}${RESET}"
-  COLOR=$( [ "$CLOSED_AWAITING_AUDIT" -gt 0 ] && echo "$YELLOW" || echo "$GREEN" )
-  echo -e "  Closed (awaiting-audit): ${COLOR}${CLOSED_AWAITING_AUDIT}${RESET}"
-  echo -e "  Closed (audited)       : ${GREEN}${CLOSED_AUDITED}${RESET}"
+  DELTA=$(format_beads_delta "$TOTAL_ISSUES" "$INIT_TOTAL_ISSUES")
+  echo -e "  Total                 : ${COLOR}${TOTAL_ISSUES}${RESET} $DELTA"
   
-  # In-progress issues from BEADS
-  IN_PROGRESS_ISSUES=$(bd list --status in_progress --json 2>/dev/null | jq 'length' 2>/dev/null || echo "0")
+  COLOR=$( [ "$OPEN_ISSUES" -gt 0 ] && echo "$RED" || echo "$GREEN" )
+  DELTA=$(format_beads_delta "$OPEN_ISSUES" "$INIT_OPEN_ISSUES")
+  echo -e "  Open                  : ${COLOR}${OPEN_ISSUES}${RESET} $DELTA"
+  
+  COLOR=$( [ "$CLOSED_NO_LABELS" -gt 0 ] && echo "$YELLOW" || echo "$GREEN" )
+  DELTA=$(format_beads_delta "$CLOSED_NO_LABELS" "$INIT_CLOSED_NO_LABELS")
+  echo -e "  Closed (no labels)    : ${COLOR}${CLOSED_NO_LABELS}${RESET} $DELTA"
+  
+  COLOR=$( [ "$CLOSED_AWAITING_AUDIT" -gt 0 ] && echo "$YELLOW" || echo "$GREEN" )
+  DELTA=$(format_beads_delta "$CLOSED_AWAITING_AUDIT" "$INIT_CLOSED_AWAITING_AUDIT")
+  echo -e "  Closed (awaiting-audit): ${COLOR}${CLOSED_AWAITING_AUDIT}${RESET} $DELTA"
+  
+  DELTA=$(format_beads_delta "$CLOSED_AUDITED" "$INIT_CLOSED_AUDITED")
+  echo -e "  Closed (audited)       : ${GREEN}${CLOSED_AUDITED}${RESET} $DELTA"
+  
   COLOR=$( [ "$IN_PROGRESS_ISSUES" -gt 0 ] && echo "$CYAN" || echo "$GREEN" )
-  echo -e "  In Progress           : ${COLOR}${IN_PROGRESS_ISSUES}${RESET}"
+  DELTA=$(format_beads_delta "$IN_PROGRESS_ISSUES" "$INIT_IN_PROGRESS_ISSUES")
+  echo -e "  In Progress           : ${COLOR}${IN_PROGRESS_ISSUES}${RESET} $DELTA"
   echo
 
   # ——————————————————————————————————————————————
