@@ -161,11 +161,11 @@ while true; do
 
     rm "$TMP_OUT"
 
-    # Build check (npm run build) - suppress all output
+    # Build check (bun run build) - suppress all output
     if [ -f package.json ]; then
       BUILD_OUT=$(mktemp)
       set +e  # Temporarily disable exit on error
-      npm run build > "$BUILD_OUT" 2>&1
+      bun run build > "$BUILD_OUT" 2>&1
       BUILD_EXIT=$?
       set -e  # Re-enable exit on error
       if [ $BUILD_EXIT -eq 0 ]; then
