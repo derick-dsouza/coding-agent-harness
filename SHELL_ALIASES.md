@@ -136,11 +136,34 @@ code-agent-cd && pwd
 # Should output: /Users/derickdsouza/Projects/development/coding-agent-harness
 ```
 
+### `autocode-dashboard [frontend-dir]`
+**Monitor workers, issues, and TypeScript errors**
+
+```bash
+# Run from project directory (where .autocode-workers is)
+cd /path/to/project
+autocode-dashboard
+
+# Specify frontend directory (default: saUI)
+autocode-dashboard src/frontend
+```
+
+**What it shows:**
+- BEADS issues (total, open, closed, in-progress)
+- Worker coordination (active workers, claims, file locks)
+- TypeScript errors (total, test files, non-test files)
+- Build status
+
+**Refresh rates:**
+- Issues & workers: every 30 seconds
+- TypeScript & build: every 60 seconds
+
 ## Summary
 
 | Alias | What It Does |
 |-------|--------------|
-| `autocode` | 🎯 **Main command** - Points to code-agent-update |
+| `autocode` | 🎯 **Main command** - Run coding agent in current directory |
+| `autocode-dashboard` | 📊 **Monitor** - Watch workers, issues, TS errors |
 | `code-agent-update` | 🎯 **Detect + Run** (venv activated automatically) |
 | `code-agent-detect` | 🔍 Detect changes only (venv activated) |
 | `code-agent-run` | 🤖 Run agent only (venv activated) |
