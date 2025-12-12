@@ -1,0 +1,14 @@
+{
+  "agent_sdk": "claude-agent-sdk",
+  "task_adapter": "beads",
+  "task_adapter_config": {
+    "beads": {
+      "workspace": "default"
+    }
+  },
+  "initializer_model": "claude-opus-4-5-20251101",
+  "coding_model": "claude-sonnet-4-5-20250929",
+  "audit_model": "claude-opus-4-5-20251101",
+  "spec_file": "app_spec.txt",
+  "max_iterations": null
+}
