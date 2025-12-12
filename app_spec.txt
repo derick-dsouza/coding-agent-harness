@@ -26,22 +26,14 @@
   <!-- PROJECT IDENTITY -->
   <!-- ============================================================ -->
   
-  <project_name>{{Your Project Name}}</project_name>
+  <project_name>Agent SDK Auth Extension</project_name>
   
   <overview>
-    {{Provide a comprehensive 2-4 paragraph description of what you're building.
-    Include:
-    - Core purpose and value proposition
-    - Target users or use cases
-    - Key differentiators or unique features
-    - Overall user experience goals
-    
-    Example:
-    "Build a task management application that helps remote teams coordinate work
-    asynchronously. The app should provide visual kanban boards, time tracking,
-    and team analytics with a focus on reducing meeting overhead. The UI should
-    be clean and modern, optimized for both desktop and mobile workflows."
-    }}
+    The Agent SDK Auth Extension project aims to add reliable authentication flows for Codex and Gemini SDKs to make them comparable to the existing Claude implementation. Currently, the Claude Agent SDK uses OAuth token (environment-based) authentication and works correctly; this will remain unchanged.
+
+    The project will implement authentication for Codex and Gemini adapters with CLI-oriented interfaces. When native OAuth authentication is not available for these SDKs, the system will fall back to using CLIProxy with subscription credentials. The adapter registry already supports CLI-oriented Codex, Gemini, Factory Droid, Aider, OpenCode, and Mistral with simulation fallback capabilities.
+
+    Key features include OAuth device code flows where supported, API key authentication as a secondary option, CLIProxy integration as a fallback mechanism, adapter enforcement to block execution when authentication is missing (unless in simulation mode), and comprehensive diagnostic messaging. The implementation will prioritize security by never hardcoding credentials and will ensure all authentication errors provide actionable next steps for users.
   </overview>
   
   
@@ -53,63 +45,55 @@
   <technology_stack>
     
     <api_authentication>
-      {{Specify authentication requirements and API keys
-      
-      Example:
-      - Use OAuth 2.0 for user authentication
-      - Read API keys from environment variables (STRIPE_SECRET_KEY)
-      - JWT tokens for session management
+      - Claude SDK: OAuth token via environment variable (existing implementation, unchanged)
+      - Codex SDK: OAuth device code or CLIProxy fallback
+      - Gemini SDK: OAuth device code or API key or CLIProxy fallback
+      - Environment variables: CODEX_OAUTH_TOKEN, GEMINI_OAUTH_TOKEN, GEMINI_API_KEY, CLI_PROXY_URL
       - Never hardcode credentials
-      }}
+      - Simulation mode bypasses authentication checks
     </api_authentication>
     
     <frontend>
-      <framework>{{React/Vue/Angular/Svelte/etc with build tool}}</framework>
-      <styling>{{Tailwind CSS/CSS Modules/Styled Components/SCSS}}</styling>
-      <state_management>{{Redux/MobX/Zustand/Context API}}</state_management>
-      <routing>{{React Router/Vue Router/etc}}</routing>
-      <ui_libraries>{{Material-UI/Ant Design/Chakra UI/Shadcn/etc}}</ui_libraries>
+      <framework>Not applicable (CLI tool)</framework>
+      <styling>Not applicable (CLI tool)</styling>
+      <state_management>Not applicable (CLI tool)</state_management>
+      <routing>Not applicable (CLI tool)</routing>
+      <ui_libraries>Not applicable (CLI tool)</ui_libraries>
       <additional_tools>
-        {{List any additional frontend libraries:
-        - Chart libraries (Chart.js, Recharts)
-        - Form handling (React Hook Form, Formik)
-        - Date handling (date-fns, moment)
-        - Rich text editors
-        - File upload libraries
-        }}
+        - Command-line interface libraries
+        - Configuration file parsers (YAML)
+        - Authentication helpers for OAuth flows
       </additional_tools>
-      <port>{{Specify port number, e.g., 3000, 5173}}</port>
+      <port>Not applicable (CLI tool)</port>
     </frontend>
     
     <backend>
-      <runtime>{{Node.js/Python/Go/Java/etc}}</runtime>
-      <framework>{{Express/FastAPI/Django/Spring Boot/etc}}</framework>
-      <database>{{PostgreSQL/MySQL/SQLite/MongoDB/etc}}</database>
-      <orm>{{Prisma/TypeORM/Sequelize/SQLAlchemy/etc}}</orm>
+      <runtime>Python 3.x</runtime>
+      <framework>Agent SDK framework</framework>
+      <database>Not applicable (file-based configuration)</database>
+      <orm>Not applicable</orm>
       <api_integrations>
-        {{List third-party APIs to integrate:
-        - Payment processing (Stripe, PayPal)
-        - Email services (SendGrid, Mailgun)
-        - Cloud storage (AWS S3, Cloudinary)
-        - AI services (OpenAI, Anthropic Claude)
-        - Analytics (Google Analytics, Mixpanel)
-        }}
+        - Codex CLI tool integration
+        - Gemini CLI tool integration
+        - CLIProxy service integration
+        - Existing Claude SDK integration (unchanged)
+        - Factory Droid, Aider, OpenCode, Mistral CLI adapters
       </api_integrations>
-      <authentication>{{JWT/OAuth/Passport/Auth0/etc}}</authentication>
-      <port>{{Specify port number, e.g., 3001, 8000}}</port>
+      <authentication>OAuth token and API key management</authentication>
+      <port>Not applicable (CLI tool)</port>
     </backend>
     
     <communication>
-      <api_style>{{RESTful/GraphQL/gRPC}}</api_style>
-      <real_time>{{WebSockets/SSE/Polling if needed}}</real_time>
-      <data_format>{{JSON/Protocol Buffers/etc}}</data_format>
+      <api_style>CLI command-line interface</api_style>
+      <real_time>Not applicable</real_time>
+      <data_format>YAML configuration files, JSON for data exchange</data_format>
     </communication>
     
     <infrastructure>
-      <deployment>{{Docker/Kubernetes/Serverless/Traditional hosting}}</deployment>
-      <ci_cd>{{GitHub Actions/GitLab CI/Jenkins/CircleCI}}</ci_cd>
-      <monitoring>{{Sentry/DataDog/New Relic/etc}}</monitoring>
-      <logging>{{Winston/Pino/Morgan/etc}}</logging>
+      <deployment>CLI tool installation (pip)</deployment>
+      <ci_cd>Not applicable (CLI tool)</ci_cd>
+      <monitoring>Logging for authentication flows</monitoring>
+      <logging>Standard Python logging with auth flow diagnostics</logging>
     </infrastructure>
     
   </technology_stack>
@@ -121,32 +105,22 @@
   
   <prerequisites>
     <environment_setup>
-      {{List all setup requirements:
-      
-      - Environment variables needed (with descriptions)
-      - Package managers (npm/pnpm/yarn, pip/poetry)
-      - Required global dependencies
-      - Database setup and migrations
-      - External service accounts needed
-      - Local development ports to keep free
-      - Any seed data or fixtures needed
-      
-      Example:
-      - Create .env file with DATABASE_URL, JWT_SECRET, STRIPE_KEY
-      - Install pnpm globally: npm install -g pnpm
-      - Run database migrations: npm run db:migrate
-      - Frontend runs on port 3000, backend on port 3001
-      }}
+      - Install required CLI tools: codex, gemini
+      - Environment variables: CODEX_OAUTH_TOKEN, GEMINI_OAUTH_TOKEN, GEMINI_API_KEY, CLI_PROXY_URL
+      - Package manager: pip for Python dependencies
+      - Optional: CLIProxy service URL for fallback authentication
+      - Configuration files: auth_config.yaml for per-SDK settings
+      - No database required
+      - No port requirements (CLI tool)
     </environment_setup>
     
     <system_requirements>
-      {{Specify minimum system requirements:
-      - Node.js version
-      - Python version
-      - Database version
-      - RAM/disk space
-      - OS compatibility
-      }}
+      - Python 3.8 or higher
+      - Codex CLI tool installed
+      - Gemini CLI tool installed
+      - OS compatibility: Linux, macOS, Windows (WSL)
+      - Minimum RAM: 512MB
+      - Disk space: 100MB for tool and dependencies
     </system_requirements>
   </prerequisites>
   
@@ -158,108 +132,118 @@
   
   <core_features>
     
-    <!-- Template for each feature group -->
-    <feature_group_1>
-      <name>{{Feature Group Name}}</name>
-      <description>{{Brief description of this feature group}}</description>
+    <authentication_inventory>
+      <name>Auth Options Inventory</name>
+      <description>Document and research existing authentication flows for all SDKs</description>
       <requirements>
-        {{List specific requirements using bullet points:
-        
-        - Requirement 1 with details
-        - Requirement 2 with details
-        - User interaction flows
-        - Edge cases to handle
-        - Performance expectations
-        - Validation rules
-        
-        Be as specific as possible. Include:
-        - UI/UX details (button placement, modal behavior)
-        - Business logic (calculations, rules, workflows)
-        - Data requirements (what to store, what to display)
-        - Error handling (what happens when things fail)
-        - Permissions/access control
-        
-        Example for a "User Profile" feature:
-        - Display user avatar, name, email, bio
-        - Edit button opens inline editing mode
-        - Save validates email format and required fields
-        - Show error messages below invalid fields
-        - Auto-save after 3 seconds of no typing
-        - Upload avatar with 5MB size limit, JPG/PNG only
-        - Show loading spinner during save
-        - Success toast notification on completion
-        - Only user can edit their own profile
-        }}
+        - Document Claude OAuth flow specifics (environment variable name, token storage location, refresh behavior)
+        - Research Codex CLI supported auth modes (device code, OAuth, API key)
+        - Identify Codex login command and token storage location
+        - Research Gemini CLI supported auth modes (device code, OAuth, API key)
+        - Identify Gemini login command and token storage location
+        - Create documentation of all findings in auth_inventory.md
       </requirements>
-    </feature_group_1>
+    </authentication_inventory>
     
-    <feature_group_2>
-      <name>{{Another Feature Group}}</name>
-      <description>{{Description}}</description>
+    <codex_auth_path>
+      <name>Codex Authentication Implementation</name>
+      <description>Implement authentication flow for Codex SDK with fallback options</description>
       <requirements>
-        {{Continue with more feature groups...}}
+        - Preferred path: CLI/device-code OAuth flow capturing token to CODEX_OAUTH_TOKEN
+        - Fallback: CLIProxy via codex.use_cli_proxy config using CLI_PROXY_URL
+        - Adapter enforcement: Block execution when both token and proxy are missing (unless simulation mode)
+        - Validate token format and expiration before CLI invocation
+        - Pass appropriate token/flags to CLI or proxy command
+        - Provide clear error messages with actionable steps to fix auth issues
+        - Ensure simulation mode bypasses auth checks as designed
+        - Add startup message indicating active auth path
       </requirements>
-    </feature_group_2>
+    </codex_auth_path>
     
-    <!-- Common feature groups to consider:
+    <gemini_auth_path>
+      <name>Gemini Authentication Implementation</name>
+      <description>Implement authentication flow for Gemini SDK with multiple options</description>
+      <requirements>
+        - Preferred path: CLI/device-code OAuth flow capturing token to GEMINI_OAUTH_TOKEN
+        - Secondary option: GEMINI_API_KEY environment variable
+        - Fallback: CLIProxy via gemini.use_cli_proxy config using CLI_PROXY_URL
+        - Adapter enforcement mirrors Codex (require token/proxy unless simulation)
+        - Validate API key format when using API key authentication
+        - Handle token expiration gracefully with refresh prompts
+        - Same error handling and simulation bypass as Codex
+      </requirements>
+    </gemini_auth_path>
     
-    <authentication_authorization>
-      User login, registration, password reset, roles, permissions
-    </authentication_authorization>
+    <shared_auth_utilities>
+      <name>Shared Authentication Utilities</name>
+      <description>Common helpers for authentication across all SDKs</description>
+      <requirements>
+        - Add auth resolver helper that reads environment variables and config
+        - Optionally invoke CLI login flow when tokens are missing
+        - Surface next steps for users when authentication fails
+        - Extend config schema with per-SDK auth_type and expected env vars
+        - Define fallback order: OAuth → API key → proxy → simulation
+        - Normalize diagnostics (which path selected, which env missing, suggested command)
+        - Create auth_helper.py module with reusable functions
+      </requirements>
+    </shared_auth_utilities>
     
-    <user_management>
-      Profile editing, preferences, account settings, delete account
-    </user_management>
     
-    <core_functionality>
-      The main features that define your app
-    </core_functionality>
+    <adapter_wiring>
+      <name>Adapter Integration</name>
+      <description>Wire authentication into existing SDK adapters</description>
+      <requirements>
+        - Modify Codex adapter to accept auth payload (token/proxy flags)
+        - Modify Gemini adapter to accept auth payload (token/proxy flags)
+        - Include auth in all CLI invocations for both adapters
+        - Ensure simulation mode skips auth checks by design
+        - Add startup prints showing active auth path and warnings
+        - Pass tokens via environment variables or CLI flags appropriately
+      </requirements>
+    </adapter_wiring>
     
-    <data_management>
-      CRUD operations for your primary entities
-    </data_management>
+    <testing>
+      <name>Authentication Testing</name>
+      <description>Unit tests for authentication resolution matrix</description>
+      <requirements>
+        - Unit tests for all auth combinations:
+          * Token present/missing for each SDK
+          * Proxy enabled/disabled
+          * Simulation mode on/off
+          * API key vs OAuth vs proxy paths
+        - Document CLI login steps with expected outputs
+        - Proxy smoke tests if CLIProxy is available
+        - Test error messages are actionable
+        - Test fallback order works correctly
+      </requirements>
+    </testing>
     
-    <search_filtering>
-      Search functionality, filters, sorting, pagination
-    </search_filtering>
+    <documentation>
+      <name>Documentation Updates</name>
+      <description>Update README and configuration documentation</description>
+      <requirements>
+        - Update README.md with authentication sections
+        - Document environment variables (CODEX_OAUTH_TOKEN, GEMINI_OAUTH_TOKEN, GEMINI_API_KEY, CLI_PROXY_URL)
+        - Document CLI login commands for each SDK
+        - Create proxy setup guide
+        - Add troubleshooting section for common auth issues
+        - Note that Claude path remains unchanged
+        - Include examples of configuration files
+      </requirements>
+    </documentation>
     
-    <notifications>
-      In-app notifications, email notifications, push notifications
-    </notifications>
-    
-    <collaboration>
-      Sharing, commenting, team features, permissions
-    </collaboration>
-    
-    <analytics_reporting>
-      Dashboards, charts, data visualization, exports
-    </analytics_reporting>
-    
-    <settings_preferences>
-      App configuration, user preferences, theme switching
-    </settings_preferences>
-    
-    <integrations>
-      Third-party service integrations
-    </integrations>
-    
-    <responsive_design>
-      Mobile adaptations, touch gestures, progressive web app
-    </responsive_design>
-    
-    <accessibility>
-      Keyboard navigation, screen reader support, ARIA labels
-    </accessibility>
-    
-    <performance>
-      Caching, lazy loading, optimization strategies
-    </performance>
-    
-    <security>
-      Data protection, input validation, CSRF protection
-    </security>
-    -->
-    
+    <rollout_safety>
+      <name>Safe Rollout Strategy</name>
+      <description>Ensure safe deployment of authentication features</description>
+      <requirements>
+        - Default Codex/Gemini to simulation until tokens/proxy configured
+        - No changes to Claude authentication behavior
+        - Ensure all error messages include exact env/command to fix
+        - Add feature flags for enabling auth per SDK
+        - Gradual rollout option if needed
+        - Monitoring for auth-related errors
+      </requirements>
+    </adapter_wiring>
   </core_features>
   
   
@@ -269,87 +253,53 @@
   <!-- ============================================================ -->
   
   <database_schema>
-    <tables>
+    <configuration_files>
       
-      <table_1>
-        <name>{{table_name}}</name>
-        <description>{{What this table stores}}</description>
-        <fields>
-          {{List all fields with types and constraints:
-          
-          - id: UUID/INTEGER PRIMARY KEY
-          - field_name: TYPE NOT NULL
-          - foreign_key: INTEGER REFERENCES other_table(id)
-          - created_at: TIMESTAMP DEFAULT NOW()
-          - updated_at: TIMESTAMP
-          
-          Include:
-          - Field names (use snake_case for SQL databases)
-          - Data types (INTEGER, VARCHAR(255), TEXT, BOOLEAN, TIMESTAMP, JSON)
-          - Constraints (NOT NULL, UNIQUE, DEFAULT values)
-          - Foreign key relationships
-          - Indexes for performance
-          
-          Example:
-          - id: INTEGER PRIMARY KEY AUTOINCREMENT
-          - user_id: INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE
-          - email: VARCHAR(255) UNIQUE NOT NULL
-          - status: VARCHAR(50) DEFAULT 'active'
-          - metadata: JSON
-          - created_at: TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-          - updated_at: TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-          - INDEX idx_user_email ON (user_id, email)
-          }}
-        </fields>
-        <relationships>
-          {{Describe relationships:
-          - Has many: One user has many posts
-          - Belongs to: Each post belongs to one user
-          - Many to many: Users and roles (through user_roles junction table)
-          }}
-        </relationships>
-      </table_1>
+      <auth_config>
+        <name>auth_config.yaml</name>
+        <description>Per-SDK authentication configuration</description>
+        <structure>
+          - codex:
+            * auth_type: oauth|api_key|proxy|simulation
+            * use_cli_proxy: boolean
+            * oauth:
+              - token_env: CODEX_OAUTH_TOKEN
+              - login_command: 'codex auth login'
+            * proxy:
+              - url_env: CLI_PROXY_URL
+          - gemini:
+            * auth_type: oauth|api_key|proxy|simulation
+            * use_cli_proxy: boolean
+            * oauth:
+              - token_env: GEMINI_OAUTH_TOKEN
+              - login_command: 'gemini auth login'
+            * api_key:
+              - token_env: GEMINI_API_KEY
+            * proxy:
+              - url_env: CLI_PROXY_URL
+          - claude:
+            * auth_type: oauth (existing, unchanged)
+            * token_env: CLAUDE_API_TOKEN
+        </structure>
+      </auth_config>
       
-      <table_2>
-        {{Repeat for each table...}}
-      </table_2>
+      <environment_variables>
+        <name>.env</name>
+        <description>Environment variables for authentication</description>
+        <variables>
+          - CODEX_OAUTH_TOKEN: OAuth token for Codex
+          - GEMINI_OAUTH_TOKEN: OAuth token for Gemini
+          - GEMINI_API_KEY: API key for Gemini
+          - CLI_PROXY_URL: Proxy service URL for fallback
+          - CLAUDE_API_TOKEN: Existing Claude token (unchanged)
+        </variables>
+      </environment_variables>
       
-      <!-- Common tables to consider:
-      
-      <users>
-        Authentication, profile, preferences
-      </users>
-      
-      <sessions>
-        Login sessions, tokens
-      </sessions>
-      
-      <audit_logs>
-        Track important actions
-      </audit_logs>
-      
-      <files_uploads>
-        File metadata and locations
-      </files_uploads>
-      
-      <notifications>
-        User notifications
-      </notifications>
-      
-      <settings>
-        Application and user settings
-      </settings>
-      -->
-      
-    </tables>
+    </configuration_files>
     
-    <migrations>
-      {{Describe migration strategy:
-      - Initial schema creation
-      - Version control approach
-      - Rollback strategy
-      }}
-    </migrations>
+    <no_database>
+      <description>This CLI tool does not use a database. All configuration is stored in YAML files and environment variables.</description>
+    </no_database>
   </database_schema>
   
   
@@ -753,61 +703,170 @@
   <implementation_steps>
     
     <phase number="1">
-      <title>{{Phase Title (e.g., Foundation & Setup)}}</title>
-      <description>{{What this phase accomplishes}}</description>
+      <title>Auth Options Inventory (Research)</title>
+      <description>Document existing authentication flows and research new SDK requirements</description>
       <tasks>
-        {{List all tasks for this phase:
-        
-        - Initialize project structure
-        - Set up development environment
-        - Configure build tools
-        - Set up database
-        - Create base layouts
-        - Implement authentication scaffold
-        
-        Be specific and actionable. Each task should be clear and testable.
-        
-        Example tasks:
-        - Initialize React app with Vite
-        - Install and configure Tailwind CSS
-        - Set up Express server with TypeScript
-        - Create SQLite database with initial schema
-        - Implement JWT authentication middleware
-        - Create protected route HOC
-        - Build login and registration pages
-        - Set up error handling and logging
-        }}
+        - Document Claude OAuth flow specifics (environment variable name, file outputs, refresh behavior)
+        - Check Codex CLI: supported auth modes (device code/OAuth/API key)
+        - Identify Codex login command and token storage location
+        - Check Gemini CLI: supported auth modes
+        - Identify Gemini login command and token storage location
+        - Create auth_inventory.md with all findings
       </tasks>
-      <dependencies>
-        {{List what must be completed before this phase}}
-      </dependencies>
+      <dependencies>None</dependencies>
       <deliverables>
-        {{What will be complete after this phase:
-        - Specific features working
-        - Screens accessible
-        - APIs functional
-        }}
+        - Complete documentation of Claude auth flow
+        - Research findings for Codex auth capabilities
+        - Research findings for Gemini auth capabilities
+        - Auth inventory markdown file
       </deliverables>
     </phase>
     
     <phase number="2">
-      <title>{{Next Phase}}</title>
-      <description>{{Description}}</description>
+      <title>Codex Auth Path</title>
+      <description>Implement authentication flow for Codex SDK with CLIProxy fallback</description>
       <tasks>
-        {{Continue with subsequent phases...}}
+        - Implement CLI/device-code OAuth flow for Codex
+        - Capture token into CODEX_OAUTH_TOKEN environment variable
+        - Enable CLIProxy fallback with codex.use_cli_proxy config
+        - Implement CLIProxy integration using CLI_PROXY_URL
+        - Add adapter enforcement to block when token/proxy missing (unless simulation)
+        - Validate token format and expiration before CLI invocation
+        - Pass appropriate token/flags to CLI or proxy command
+        - Add clear error messages with actionable steps
       </tasks>
+      <dependencies>Phase 1 complete</dependencies>
+      <deliverables>
+        - Working Codex OAuth authentication
+        - CLIProxy fallback implementation
+        - Adapter enforcement logic
+        - Error handling with actionable messages
+      </deliverables>
     </phase>
     
-    <!-- Recommended phase structure:
+    <phase number="3">
+      <title>Gemini Auth Path</title>
+      <description>Implement authentication flow for Gemini SDK with multiple options</description>
+      <tasks>
+        - Implement CLI/device-code OAuth flow for Gemini
+        - Capture token into GEMINI_OAUTH_TOKEN environment variable
+        - Add GEMINI_API_KEY as secondary auth option
+        - Implement CLIProxy fallback via gemini.use_cli_proxy config
+        - Mirror Codex adapter enforcement logic
+        - Add API key format validation
+        - Handle token expiration with refresh prompts
+      </tasks>
+      <dependencies>Phase 2 complete</dependencies>
+      <deliverables>
+        - Working Gemini OAuth authentication
+        - API key authentication option
+        - CLIProxy fallback implementation
+        - Token expiration handling
+      </deliverables>
+    </phase>
     
-    Phase 1: Foundation (Setup, auth, basic layout)
-    Phase 2: Core Features (Main functionality)
-    Phase 3: Data Management (CRUD operations)
-    Phase 4: Advanced Features (Complex interactions)
-    Phase 5: Polish (UI refinement, animations)
-    Phase 6: Testing & Optimization
-    Phase 7: Deployment & Documentation
-    -->
+    <phase number="4">
+      <title>Shared Auth Utilities</title>
+      <description>Create common authentication helpers and extend configuration</description>
+      <tasks>
+        - Add shared auth resolver helper
+        - Implement environment variable reading logic
+        - Add optional CLI login flow invocation
+        - Extend defaults/config schema with per-SDK auth settings
+        - Define fallback order: OAuth → API key → proxy → simulation
+        - Normalize diagnostics (selected path, missing env, suggested commands)
+        - Store implementation in src/auth/auth_helper.py
+      </tasks>
+      <dependencies>Phase 3 complete</dependencies>
+      <deliverables>
+        - Auth resolver helper module
+        - Updated configuration schema
+        - Normalized diagnostic messages
+        - Authentication utility functions
+      </deliverables>
+    </phase>
+    
+    <phase number="5">
+      <title>Adapter Wiring</title>
+      <description>Integrate authentication into existing SDK adapters</description>
+      <tasks>
+        - Modify Codex adapter to accept auth payload
+        - Modify Gemini adapter to accept auth payload
+        - Include auth in all CLI invocations
+        - Ensure simulation mode skips auth checks
+        - Add startup prints showing active auth path
+        - Add warnings when falling back to proxy/simulation
+        - Pass tokens via environment or CLI flags appropriately
+      </tasks>
+      <dependencies>Phase 4 complete</dependencies>
+      <deliverables>
+        - Updated Codex adapter with auth
+        - Updated Gemini adapter with auth
+        - Auth-aware CLI invocations
+        - Startup diagnostic messages
+      </deliverables>
+    </phase>
+    
+    <phase number="6">
+      <title>Testing</title>
+      <description>Unit tests and documentation for authentication flows</description>
+      <tasks>
+        - Write unit tests for auth resolution matrix
+        - Test token present/missing scenarios
+        - Test proxy enabled/disabled scenarios
+        - Test simulation mode on/off
+        - Document CLI login steps with expected outputs
+        - Create proxy smoke tests (if available)
+        - Test error message actionability
+      </tasks>
+      <dependencies>Phase 5 complete</dependencies>
+      <deliverables>
+        - Comprehensive unit test suite
+        - Manual integration test documentation
+        - Proxy smoke test results
+      </deliverables>
+    </phase>
+    
+    <phase number="7">
+      <title>Documentation</title>
+      <description>Update documentation and create guides</description>
+      <tasks>
+        - Update README.md with auth sections
+        - Document environment variables
+        - Document CLI login commands
+        - Create proxy setup guide
+        - Add troubleshooting section
+        - Note Claude path remains unchanged
+        - Create configuration examples
+      </tasks>
+      <dependencies>Phase 6 complete</dependencies>
+      <deliverables>
+        - Updated README.md
+        - Auth configuration guide
+        - Troubleshooting documentation
+        - Configuration file examples
+      </deliverables>
+    </phase>
+    
+    <phase number="8">
+      <title>Rollout Safety</title>
+      <description>Ensure safe deployment with default behaviors</description>
+      <tasks>
+        - Default Codex/Gemini to simulation until configured
+        - Verify Claude behavior unchanged
+        - Ensure errors include exact env/command to fix
+        - Add feature flags for per-SDK auth
+        - Set up monitoring for auth errors
+        - Prepare gradual rollout plan if needed
+      </tasks>
+      <dependencies>Phase 7 complete</dependencies>
+      <deliverables>
+        - Safe default configurations
+        - Error message verification
+        - Feature flag implementation
+        - Monitoring setup
+      </deliverables>
+    </phase>
     
   </implementation_steps>
   
