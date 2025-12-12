@@ -21,7 +21,7 @@
 - **File operations**: `mv`, `rm`, `touch`, `ln`, `readlink`
 - **Archives**: `tar`, `zip`, `unzip`, `gzip`, `gunzip`
 - **Network**: `curl`, `wget`, `ping`, `netstat`, `telnet`, `ssh`, `scp`
-- **Shell**: `bash`, `sh`, `zsh`, `exec`, `source`
+- **Shell**: `bash`, `sh`, `zsh`, `exec`, `source`, `export`
 - **Process**: `kill`, `killall`, `top`, `htop`, `bg`, `fg`, `jobs`
 - **System**: `sudo`, `su`, `chown`, `chgrp`, `df`, `du`, `mount`
 
