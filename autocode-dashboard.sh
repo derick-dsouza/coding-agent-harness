@@ -89,6 +89,20 @@ cleanup() {
     done
     shopt -u nullglob
     
+    # Clean up stale init lock (> 300s old)
+    if [ -f "$WORKERS_DIR/init.lock" ]; then
+      INIT_TIME=$(jq -r '.locked_at // 0' "$WORKERS_DIR/init.lock" 2>/dev/null | cut -d. -f1)
+      if [ -n "$INIT_TIME" ] && [ "$INIT_TIME" -gt 0 ]; then
+        INIT_AGE=$((NOW_TS - INIT_TIME))
+        if [ "$INIT_AGE" -ge 300 ]; then
+          INIT_WORKER=$(jq -r '.worker_id // "unknown"' "$WORKERS_DIR/init.lock" 2>/dev/null)
+          rm -f "$WORKERS_DIR/init.lock"
+          echo -e "  ${YELLOW}Cleaned up stale init lock: ${INIT_WORKER:0:8} (${INIT_AGE}s old)${RESET}"
+          CLEANED=$((CLEANED + 1))
+        fi
+      fi
+    fi
+    
     if [ "$CLEANED" -gt 0 ]; then
       echo -e "  ${GREEN}Cleaned $CLEANED stale claims/locks${RESET}"
     fi
@@ -176,13 +190,58 @@ while true; do
       [ -z "$FILE_LOCK_COUNT" ] && FILE_LOCK_COUNT=0
     fi
     
+    # Check initialization lock
+    INIT_LOCK_STATUS="${GREEN}Free${RESET}"
+    INIT_LOCK_HOLDER=""
+    if [ -f "$WORKERS_DIR/init.lock" ]; then
+      INIT_WORKER=$(jq -r '.worker_id // ""' "$WORKERS_DIR/init.lock" 2>/dev/null)
+      INIT_TIME=$(jq -r '.locked_at // 0' "$WORKERS_DIR/init.lock" 2>/dev/null | cut -d. -f1)
+      if [ -n "$INIT_WORKER" ] && [ -n "$INIT_TIME" ] && [ "$INIT_TIME" -gt 0 ]; then
+        INIT_AGE=$((NOW_TS - INIT_TIME))
+        if [ "$INIT_AGE" -lt 300 ]; then
+          INIT_LOCK_STATUS="${YELLOW}Locked${RESET}"
+          INIT_LOCK_HOLDER=" (worker: ${INIT_WORKER:0:8}, ${INIT_AGE}s ago)"
+        else
+          INIT_LOCK_STATUS="${RED}Stale${RESET}"
+          INIT_LOCK_HOLDER=" (${INIT_AGE}s old, will auto-cleanup)"
+        fi
+      fi
+    fi
+    
+    # Count decomposition requests
+    DECOMP_COUNT=0
+    DECOMP_PENDING=0
+    if [ -d "$WORKERS_DIR/decomposition_requests" ]; then
+      shopt -s nullglob
+      for req_file in "$WORKERS_DIR/decomposition_requests/"*.request; do
+        if [ -f "$req_file" ]; then
+          DECOMP_COUNT=$((DECOMP_COUNT + 1))
+          STATUS=$(jq -r '.status // ""' "$req_file" 2>/dev/null)
+          if [ "$STATUS" = "pending" ]; then
+            DECOMP_PENDING=$((DECOMP_PENDING + 1))
+          fi
+        fi
+      done
+      shopt -u nullglob
+    fi
+    
     echo -e "${BLUE}Worker Coordination:${RESET}"
     COLOR=$( [ "$ACTIVE_WORKERS" -gt 1 ] && echo "$CYAN" || echo "$GREEN" )
     echo -e "  Active Workers      : ${COLOR}${ACTIVE_WORKERS}${RESET}"
+    echo -e "  Init Lock           : ${INIT_LOCK_STATUS}${INIT_LOCK_HOLDER}"
     COLOR=$( [ "$CLAIM_COUNT" -gt 0 ] && echo "$YELLOW" || echo "$GREEN" )
     echo -e "  Issue Claims        : ${COLOR}${CLAIM_COUNT}${RESET}"
     COLOR=$( [ "$FILE_LOCK_COUNT" -gt 0 ] && echo "$YELLOW" || echo "$GREEN" )
     echo -e "  File Locks          : ${COLOR}${FILE_LOCK_COUNT}${RESET}"
+    
+    # Show decomposition requests
+    if [ "$DECOMP_PENDING" -gt 0 ]; then
+      echo -e "  Decomp Requests     : ${RED}${DECOMP_PENDING} pending${RESET} (of ${DECOMP_COUNT} total)"
+    elif [ "$DECOMP_COUNT" -gt 0 ]; then
+      echo -e "  Decomp Requests     : ${GREEN}0 pending${RESET} (${DECOMP_COUNT} processed)"
+    else
+      echo -e "  Decomp Requests     : ${GREEN}None${RESET}"
+    fi
     
     # Show claimed issues if any
     if [ "$CLAIM_COUNT" -gt 0 ]; then
@@ -193,6 +252,23 @@ while true; do
           ISSUE_ID=$(jq -r '.issue_id // "unknown"' "$claim_file" 2>/dev/null)
           WORKER_ID=$(jq -r '.worker_id // "unknown"' "$claim_file" 2>/dev/null)
           echo -e "    - $ISSUE_ID (worker: ${WORKER_ID:0:8})"
+        fi
+      done
+      shopt -u nullglob
+    fi
+    
+    # Show pending decomposition requests if any
+    if [ "$DECOMP_PENDING" -gt 0 ]; then
+      echo -e "  ${YELLOW}Pending Decomposition:${RESET}"
+      shopt -s nullglob
+      for req_file in "$WORKERS_DIR/decomposition_requests/"*.request; do
+        if [ -f "$req_file" ]; then
+          STATUS=$(jq -r '.status // ""' "$req_file" 2>/dev/null)
+          if [ "$STATUS" = "pending" ]; then
+            ISSUE_ID=$(jq -r '.issue_id // "unknown"' "$req_file" 2>/dev/null)
+            REASON=$(jq -r '.reason // ""' "$req_file" 2>/dev/null | head -c 40)
+            echo -e "    - $ISSUE_ID: ${REASON}..."
+          fi
         fi
       done
       shopt -u nullglob
