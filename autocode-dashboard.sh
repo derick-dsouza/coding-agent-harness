@@ -26,6 +26,11 @@ NON_TEST_TSC_ERRORS="--"
 BUN_STATUS="${YELLOW}pending${RESET}"
 LAST_BUILD_CHECK="never"
 
+# Previous run values for comparison
+PREV_TOTAL_TSC_ERRORS=""
+PREV_TEST_TSC_ERRORS=""
+PREV_NON_TEST_TSC_ERRORS=""
+
 if [ ! -d "$FRONTEND_DIR" ]; then
   echo -e "${RED}Error:${RESET} frontend directory '$FRONTEND_DIR' not found!"
   exit 1
@@ -141,6 +146,13 @@ while true; do
   if [ $ELAPSED_FULL -ge $FULL_INTERVAL ]; then
     cd "$FRONTEND_DIR"
 
+    # Save previous values for comparison
+    if [[ "$TOTAL_TSC_ERRORS" =~ ^[0-9]+$ ]]; then
+      PREV_TOTAL_TSC_ERRORS="$TOTAL_TSC_ERRORS"
+      PREV_TEST_TSC_ERRORS="$TEST_TSC_ERRORS"
+      PREV_NON_TEST_TSC_ERRORS="$NON_TEST_TSC_ERRORS"
+    fi
+
     # TypeScript errors (use node_modules/.bin/tsc or npx)
     TMP_OUT=$(mktemp)
     if [ -f node_modules/.bin/tsc ]; then
@@ -188,24 +200,48 @@ while true; do
   [ $TIME_UNTIL_NEXT -lt 0 ] && TIME_UNTIL_NEXT=0
 
   echo -e "${BLUE}TypeScript Errors (tsc):${RESET} ${CYAN}(last check: ${LAST_BUILD_CHECK}, next in ${TIME_UNTIL_NEXT}s)${RESET}"
+  
+  # Helper function to format delta
+  format_delta() {
+    local curr="$1"
+    local prev="$2"
+    if [ -n "$prev" ] && [[ "$curr" =~ ^[0-9]+$ ]] && [[ "$prev" =~ ^[0-9]+$ ]]; then
+      local diff=$((curr - prev))
+      if [ $diff -lt 0 ]; then
+        echo "${GREEN}(was $prev, ${diff})${RESET}"
+      elif [ $diff -gt 0 ]; then
+        echo "${RED}(was $prev, +${diff})${RESET}"
+      else
+        echo "${CYAN}(was $prev, no change)${RESET}"
+      fi
+    else
+      echo ""
+    fi
+  }
+  
   if [[ "$TOTAL_TSC_ERRORS" =~ ^[0-9]+$ ]] && [ "$TOTAL_TSC_ERRORS" -gt 0 ]; then
     COLOR="$RED"
   else
     COLOR="$YELLOW"
   fi
-  echo -e "  Total Errors        : ${COLOR}${TOTAL_TSC_ERRORS}${RESET}"
+  DELTA=$(format_delta "$TOTAL_TSC_ERRORS" "$PREV_TOTAL_TSC_ERRORS")
+  echo -e "  Total Errors        : ${COLOR}${TOTAL_TSC_ERRORS}${RESET} $DELTA"
+  
   if [[ "$TEST_TSC_ERRORS" =~ ^[0-9]+$ ]] && [ "$TEST_TSC_ERRORS" -gt 0 ]; then
     COLOR="$YELLOW"
   else
     COLOR="$GREEN"
   fi
-  echo -e "  Test File Errors    : ${COLOR}${TEST_TSC_ERRORS}${RESET}"
+  DELTA=$(format_delta "$TEST_TSC_ERRORS" "$PREV_TEST_TSC_ERRORS")
+  echo -e "  Test File Errors    : ${COLOR}${TEST_TSC_ERRORS}${RESET} $DELTA"
+  
   if [[ "$NON_TEST_TSC_ERRORS" =~ ^[0-9]+$ ]] && [ "$NON_TEST_TSC_ERRORS" -gt 0 ]; then
     COLOR="$YELLOW"
   else
     COLOR="$GREEN"
   fi
-  echo -e "  Non-Test File Errors: ${COLOR}${NON_TEST_TSC_ERRORS}${RESET}"
+  DELTA=$(format_delta "$NON_TEST_TSC_ERRORS" "$PREV_NON_TEST_TSC_ERRORS")
+  echo -e "  Non-Test File Errors: ${COLOR}${NON_TEST_TSC_ERRORS}${RESET} $DELTA"
   echo
   echo -e "${BLUE}Build Status:${RESET} $BUN_STATUS"
   echo
