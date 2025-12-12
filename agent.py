@@ -9,11 +9,18 @@ Supports multiple task management backends (Linear, Jira, GitHub) via adapter pa
 import asyncio
 import os
 import re
+import sys
+import select
+import termios
+import tty
 import time
 from pathlib import Path
 from typing import Optional
 
 from claude_agent_sdk import ClaudeSDKClient
+
+# Global shutdown flag
+_shutdown_requested = False
 
 from client import create_client
 from progress import print_session_header, print_progress_summary, is_task_initialized
@@ -35,6 +42,71 @@ AUTO_CONTINUE_DELAY_SECONDS = 3
 AUDIT_INTERVAL = 5  # Trigger audit every 5 completed features (was 10)
 AUDIT_LABEL_AWAITING = "awaiting-audit"
 AUDIT_LABEL_AUDITED = "audited"
+
+
+def check_for_quit_key() -> bool:
+    """
+    Non-blocking check if 'q' or 'Q' was pressed.
+    Returns True if quit was requested.
+    """
+    global _shutdown_requested
+    if _shutdown_requested:
+        return True
+    
+    try:
+        # Check if stdin has data available (non-blocking)
+        if sys.stdin.isatty():
+            # Save terminal settings
+            old_settings = termios.tcgetattr(sys.stdin)
+            try:
+                # Set terminal to raw mode for single char input
+                tty.setcbreak(sys.stdin.fileno())
+                # Check if input is available
+                if select.select([sys.stdin], [], [], 0)[0]:
+                    key = sys.stdin.read(1)
+                    if key.lower() == 'q':
+                        _shutdown_requested = True
+                        return True
+            finally:
+                # Restore terminal settings
+                termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings)
+    except Exception:
+        # If terminal operations fail, just continue
+        pass
+    
+    return False
+
+
+async def interruptible_sleep(seconds: float, message: str = "") -> bool:
+    """
+    Sleep for the specified duration, but check for 'q' keypress every 0.5s.
+    
+    Args:
+        seconds: Total seconds to sleep
+        message: Optional message to display (e.g., "Press 'q' to quit")
+    
+    Returns:
+        True if sleep completed normally, False if interrupted by 'q'
+    """
+    global _shutdown_requested
+    
+    if message:
+        print(message, flush=True)
+    
+    intervals = int(seconds / 0.5)
+    remainder = seconds - (intervals * 0.5)
+    
+    for _ in range(intervals):
+        if check_for_quit_key():
+            return False
+        await asyncio.sleep(0.5)
+    
+    if remainder > 0:
+        if check_for_quit_key():
+            return False
+        await asyncio.sleep(remainder)
+    
+    return not _shutdown_requested
 
 # Claude API rate limiting configuration
 CLAUDE_RATE_LIMIT_BASE_WAIT_SECONDS = 60
@@ -778,9 +850,14 @@ async def run_autonomous_agent(
             else:
                 tracker.print_session_summary()
 
+        # Check for quit request
+        if _shutdown_requested:
+            print("\n\n🛑 Quit requested. Shutting down gracefully...")
+            break
+
         # Handle status
         if status == "continue":
-            print(f"\nAgent will auto-continue in {AUTO_CONTINUE_DELAY_SECONDS}s...")
+            print(f"\nAgent will auto-continue in {AUTO_CONTINUE_DELAY_SECONDS}s... (press 'q' to quit)")
             
             # Check if task management needs initialization
             if task_init_handler.is_task_uninitialized(project_dir):
@@ -788,15 +865,21 @@ async def run_autonomous_agent(
                 if not task_init_handler.should_wait_for_init():
                     print("\nTo proceed, initialize task management using the command above.")
                     break
-                await asyncio.sleep(AUTO_CONTINUE_DELAY_SECONDS)
+                if not await interruptible_sleep(AUTO_CONTINUE_DELAY_SECONDS):
+                    print("\n\n🛑 Quit requested. Shutting down gracefully...")
+                    break
             else:
                 print_progress_summary(project_dir)
-                await asyncio.sleep(AUTO_CONTINUE_DELAY_SECONDS)
+                if not await interruptible_sleep(AUTO_CONTINUE_DELAY_SECONDS):
+                    print("\n\n🛑 Quit requested. Shutting down gracefully...")
+                    break
 
         elif status == "error":
             print("\nSession encountered an error")
-            print("Will retry with a fresh session...")
-            await asyncio.sleep(AUTO_CONTINUE_DELAY_SECONDS)
+            print("Will retry with a fresh session... (press 'q' to quit)")
+            if not await interruptible_sleep(AUTO_CONTINUE_DELAY_SECONDS):
+                print("\n\n🛑 Quit requested. Shutting down gracefully...")
+                break
 
         elif status == "rate_limit_exit":
             print("\nSession terminated due to long rate limit wait.")
@@ -805,8 +888,10 @@ async def run_autonomous_agent(
 
         # Small delay between sessions
         if max_iterations is None or iteration < max_iterations:
-            print("\nPreparing next session...\n")
-            await asyncio.sleep(1)
+            print("\nPreparing next session... (press 'q' to quit)\n")
+            if not await interruptible_sleep(1):
+                print("\n\n🛑 Quit requested. Shutting down gracefully...")
+                break
 
     # Clean up worker coordinator
     heartbeat_task.cancel()
