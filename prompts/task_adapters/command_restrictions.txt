@@ -7,6 +7,7 @@
 - **File operations**: `cp`, `mkdir`, `chmod` (validated)
 - **Directory**: `pwd`
 - **Node.js**: `npm`, `node`
+- **Python**: `python3` (for harness scripts like claim_issue.py)
 - **Version control**: `git`
 - **Task management**: `bd` (BEADS), `gh` (GitHub CLI)
 - **Process management**: `ps`, `lsof`, `sleep`, `pkill` (validated)
