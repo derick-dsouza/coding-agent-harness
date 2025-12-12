@@ -6,6 +6,84 @@
         "opus": "claude-opus-4-5-20251101",
         "sonnet": "claude-sonnet-4-5-20250929",
         "haiku": "claude-haiku-4-5-20250929"
+      },
+      "defaults": {
+        "initializer_model": "claude-opus-4-5-20251101",
+        "coding_model": "claude-sonnet-4-5-20250929",
+        "audit_model": "claude-opus-4-5-20251101",
+        "default_model": "claude-sonnet-4-5-20250929"
+      }
+    },
+    "factory-droid": {
+      "api_key_env": "FACTORY_DROID_API_KEY",
+      "cli_command": "factory-droid",
+      "models": {
+        "default": "factory-droid-default"
+      },
+      "defaults": {
+        "initializer_model": "factory-droid-default",
+        "coding_model": "factory-droid-default",
+        "audit_model": "factory-droid-default"
+      }
+    },
+    "aider": {
+      "api_key_env": "AIDER_API_KEY",
+      "cli_command": "aider",
+      "models": {
+        "default": "aider-default"
+      },
+      "defaults": {
+        "initializer_model": "aider-default",
+        "coding_model": "aider-default",
+        "audit_model": "aider-default"
+      }
+    },
+    "opencode": {
+      "api_key_env": "OPENCODE_API_KEY",
+      "cli_command": "opencode",
+      "models": {
+        "default": "opencode-default"
+      },
+      "defaults": {
+        "initializer_model": "opencode-default",
+        "coding_model": "opencode-default",
+        "audit_model": "opencode-default"
+      }
+    },
+    "openai-codex-cli": {
+      "api_key_env": "OPENAI_API_KEY",
+      "cli_command": "codex",
+      "models": {
+        "default": "codex-default"
+      },
+      "defaults": {
+        "initializer_model": "codex-default",
+        "coding_model": "codex-default",
+        "audit_model": "codex-default"
+      }
+    },
+    "gemini-cli": {
+      "api_key_env": "GEMINI_API_KEY",
+      "cli_command": "gemini",
+      "models": {
+        "default": "gemini-default"
+      },
+      "defaults": {
+        "initializer_model": "gemini-default",
+        "coding_model": "gemini-default",
+        "audit_model": "gemini-default"
+      }
+    },
+    "mistral": {
+      "api_key_env": "MISTRAL_API_KEY",
+      "cli_command": "mistral",
+      "models": {
+        "default": "mistral-default"
+      },
+      "defaults": {
+        "initializer_model": "mistral-default",
+        "coding_model": "mistral-default",
+        "audit_model": "mistral-default"
       }
     }
   },
@@ -46,6 +124,9 @@
   },
   "defaults": {
     "agent_sdk": "claude-agent-sdk",
+    "initializer_agent_sdk": "claude-agent-sdk",
+    "coding_agent_sdk": "claude-agent-sdk",
+    "audit_agent_sdk": "claude-agent-sdk",
     "initializer_model": "opus",
     "coding_model": "sonnet",
     "audit_model": "opus",
