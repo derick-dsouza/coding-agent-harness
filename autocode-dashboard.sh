@@ -53,21 +53,20 @@ while true; do
   CLOSED_AUDITED=$(bd list --status closed --label "$LABEL_AUDITED" --json 2>/dev/null | jq 'length')
 
   echo -e "${BLUE}Beads Issues:${RESET}"
-  printf "  Total                 : %s%s%s\n" \
-    "$( [ "$TOTAL_ISSUES" -gt 0 ] && echo -e "$YELLOW" || echo -e "$GREEN" )" "$TOTAL_ISSUES" "$RESET"
-  printf "  Open                  : %s%s%s\n" \
-    "$( [ "$OPEN_ISSUES" -gt 0 ] && echo -e "$RED" || echo -e "$GREEN" )" "$OPEN_ISSUES" "$RESET"
-  printf "  Closed (no labels)    : %s%s%s\n" \
-    "$( [ "$CLOSED_NO_LABELS" -gt 0 ] && echo -e "$YELLOW" || echo -e "$GREEN" )" "$CLOSED_NO_LABELS" "$RESET"
-  printf "  Closed (awaiting-audit): %s%s%s\n" \
-    "$( [ "$CLOSED_AWAITING_AUDIT" -gt 0 ] && echo -e "$YELLOW" || echo -e "$GREEN" )" "$CLOSED_AWAITING_AUDIT" "$RESET"
-  printf "  Closed (audited)       : %s%s%s\n" \
-    "$( [ "$CLOSED_AUDITED" -gt 0 ] && echo -e "$GREEN" || echo -e "$GREEN" )" "$CLOSED_AUDITED" "$RESET"
+  COLOR=$( [ "$TOTAL_ISSUES" -gt 0 ] && echo "$YELLOW" || echo "$GREEN" )
+  echo -e "  Total                 : ${COLOR}${TOTAL_ISSUES}${RESET}"
+  COLOR=$( [ "$OPEN_ISSUES" -gt 0 ] && echo "$RED" || echo "$GREEN" )
+  echo -e "  Open                  : ${COLOR}${OPEN_ISSUES}${RESET}"
+  COLOR=$( [ "$CLOSED_NO_LABELS" -gt 0 ] && echo "$YELLOW" || echo "$GREEN" )
+  echo -e "  Closed (no labels)    : ${COLOR}${CLOSED_NO_LABELS}${RESET}"
+  COLOR=$( [ "$CLOSED_AWAITING_AUDIT" -gt 0 ] && echo "$YELLOW" || echo "$GREEN" )
+  echo -e "  Closed (awaiting-audit): ${COLOR}${CLOSED_AWAITING_AUDIT}${RESET}"
+  echo -e "  Closed (audited)       : ${GREEN}${CLOSED_AUDITED}${RESET}"
   
   # In-progress issues from BEADS
   IN_PROGRESS_ISSUES=$(bd list --status in_progress --json 2>/dev/null | jq 'length' 2>/dev/null || echo "0")
-  printf "  In Progress           : %s%s%s\n" \
-    "$( [ "$IN_PROGRESS_ISSUES" -gt 0 ] && echo -e "$CYAN" || echo -e "$GREEN" )" "$IN_PROGRESS_ISSUES" "$RESET"
+  COLOR=$( [ "$IN_PROGRESS_ISSUES" -gt 0 ] && echo "$CYAN" || echo "$GREEN" )
+  echo -e "  In Progress           : ${COLOR}${IN_PROGRESS_ISSUES}${RESET}"
   echo
 
   # ——————————————————————————————————————————————
@@ -109,12 +108,12 @@ while true; do
     fi
     
     echo -e "${BLUE}Worker Coordination:${RESET}"
-    printf "  Active Workers      : %s%s%s\n" \
-      "$( [ "$ACTIVE_WORKERS" -gt 1 ] && echo -e "$CYAN" || echo -e "$GREEN" )" "$ACTIVE_WORKERS" "$RESET"
-    printf "  Issue Claims        : %s%s%s\n" \
-      "$( [ "$CLAIM_COUNT" -gt 0 ] && echo -e "$YELLOW" || echo -e "$GREEN" )" "$CLAIM_COUNT" "$RESET"
-    printf "  File Locks          : %s%s%s\n" \
-      "$( [ "$FILE_LOCK_COUNT" -gt 0 ] && echo -e "$YELLOW" || echo -e "$GREEN" )" "$FILE_LOCK_COUNT" "$RESET"
+    COLOR=$( [ "$ACTIVE_WORKERS" -gt 1 ] && echo "$CYAN" || echo "$GREEN" )
+    echo -e "  Active Workers      : ${COLOR}${ACTIVE_WORKERS}${RESET}"
+    COLOR=$( [ "$CLAIM_COUNT" -gt 0 ] && echo "$YELLOW" || echo "$GREEN" )
+    echo -e "  Issue Claims        : ${COLOR}${CLAIM_COUNT}${RESET}"
+    COLOR=$( [ "$FILE_LOCK_COUNT" -gt 0 ] && echo "$YELLOW" || echo "$GREEN" )
+    echo -e "  File Locks          : ${COLOR}${FILE_LOCK_COUNT}${RESET}"
     
     # Show claimed issues if any
     if [ "$CLAIM_COUNT" -gt 0 ]; then
@@ -179,12 +178,24 @@ while true; do
   fi
 
   echo -e "${BLUE}TypeScript Errors (tsc):${RESET}"
-  printf "  Total Errors        : %s%s%s\n" \
-    "$( [[ "$TOTAL_TSC_ERRORS" =~ ^[0-9]+$ ]] && [ "$TOTAL_TSC_ERRORS" -gt 0 ] && echo -e "$RED" || echo -e "$YELLOW" )" "$TOTAL_TSC_ERRORS" "$RESET"
-  printf "  Test File Errors    : %s%s%s\n" \
-    "$( [[ "$TEST_TSC_ERRORS" =~ ^[0-9]+$ ]] && [ "$TEST_TSC_ERRORS" -gt 0 ] && echo -e "$YELLOW" || echo -e "$GREEN" )" "$TEST_TSC_ERRORS" "$RESET"
-  printf "  Non-Test File Errors: %s%s%s\n" \
-    "$( [[ "$NON_TEST_TSC_ERRORS" =~ ^[0-9]+$ ]] && [ "$NON_TEST_TSC_ERRORS" -gt 0 ] && echo -e "$YELLOW" || echo -e "$GREEN" )" "$NON_TEST_TSC_ERRORS" "$RESET"
+  if [[ "$TOTAL_TSC_ERRORS" =~ ^[0-9]+$ ]] && [ "$TOTAL_TSC_ERRORS" -gt 0 ]; then
+    COLOR="$RED"
+  else
+    COLOR="$YELLOW"
+  fi
+  echo -e "  Total Errors        : ${COLOR}${TOTAL_TSC_ERRORS}${RESET}"
+  if [[ "$TEST_TSC_ERRORS" =~ ^[0-9]+$ ]] && [ "$TEST_TSC_ERRORS" -gt 0 ]; then
+    COLOR="$YELLOW"
+  else
+    COLOR="$GREEN"
+  fi
+  echo -e "  Test File Errors    : ${COLOR}${TEST_TSC_ERRORS}${RESET}"
+  if [[ "$NON_TEST_TSC_ERRORS" =~ ^[0-9]+$ ]] && [ "$NON_TEST_TSC_ERRORS" -gt 0 ]; then
+    COLOR="$YELLOW"
+  else
+    COLOR="$GREEN"
+  fi
+  echo -e "  Non-Test File Errors: ${COLOR}${NON_TEST_TSC_ERRORS}${RESET}"
   echo
   echo -e "${BLUE}Build Status:${RESET} $BUN_STATUS"
   echo
