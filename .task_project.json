@@ -1,0 +1,60 @@
+{
+  "adapter": "beads",
+  "workspace": "default",
+  "initialized": true,
+  "created_at": "2025-12-12T16:00:00+05:30",
+  "project_name": "Agent SDK Auth Extension",
+  "meta_issue_id": "AGENT_SDK_AUTH-w3j",
+  "issues_created": 106,
+  "issues_closed": 0,
+  "features_awaiting_audit": 0,
+  "features_audited": 0,
+  "legacy_done_without_audit": 0,
+  "verification_status": {
+    "project_marked_complete": "FALSE - 0/106 issues closed",
+    "audit_status": "NOT STARTED - 0 features audited"
+  },
+  "project_phases": {
+    "phase_1": {
+      "name": "Auth Options Inventory",
+      "description": "Document Claude flow, research Codex/Gemini CLI auth modes",
+      "status": "pending"
+    },
+    "phase_2": {
+      "name": "Codex Auth Path",
+      "description": "Implement Codex OAuth, CLIProxy fallback, adapter enforcement",
+      "status": "pending"
+    },
+    "phase_3": {
+      "name": "Gemini Auth Path",
+      "description": "Implement Gemini OAuth, API key fallback, CLIProxy, adapter enforcement",
+      "status": "pending"
+    },
+    "phase_4": {
+      "name": "Shared Auth Utilities",
+      "description": "Auth resolver helper, config schema, diagnostics",
+      "status": "pending"
+    },
+    "phase_5": {
+      "name": "Adapter Wiring",
+      "description": "Wire Codex/Gemini adapters, simulation mode bypass",
+      "status": "pending"
+    },
+    "phase_6": {
+      "name": "Testing",
+      "description": "Unit tests, integration docs, proxy smoke tests",
+      "status": "pending"
+    },
+    "phase_7": {
+      "name": "Documentation",
+      "description": "README updates, CLI docs, troubleshooting guide",
+      "status": "pending"
+    },
+    "phase_8": {
+      "name": "Rollout Safety",
+      "description": "Default simulation mode, verify Claude unchanged, actionable errors",
+      "status": "pending"
+    }
+  },
+  "notes": "Project initialized by initializer agent. All 106 issues created (105 feature issues + 1 META issue). Issues are organized by phase with proper dependencies. Work should start with Phase 1 (research tasks) before moving to implementation phases."
+}
