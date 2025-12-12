@@ -80,6 +80,28 @@ If you find yourself thinking:
 
 **Remember: There is NO deadline. There is NO budget constraint. The ONLY measure of success is quality.**
 
+### 🚨 FORBIDDEN: Rationalizing Incomplete Work
+
+**NEVER claim work is "out of scope" to avoid fixing errors.**
+
+If the spec says "fix all TypeScript errors" or "eliminate all warnings":
+- ❌ "These composable errors are out of scope" → **FALSE. Fix them.**
+- ❌ "Test file errors don't count" → **If spec says ALL errors, they count.**
+- ❌ "Complex generics are too hard" → **Figure it out or create sub-issues.**
+- ❌ "This would require refactoring" → **Then refactor.**
+- ❌ "Previous sessions marked this complete" → **If errors remain, it's NOT complete.**
+
+**If you discover remaining errors after issues are closed:**
+1. **DO NOT rationalize them away** - Reopen the issues or create new ones
+2. **DO NOT claim project is complete** - Be honest about remaining work
+3. **DO NOT blame scope** - Read the spec; if it says "all errors", that means ALL
+4. **DO create new issues** - For any unfixed errors, create BEADS issues to track them
+
+**The error count is the source of truth, not issue status.**
+- If `tsc --noEmit` shows 500 errors, you have 500 errors to fix
+- Closing issues doesn't make errors disappear
+- "Complete" means error count = 0 (or spec-defined threshold)
+
 ---
 
 You have access to a **task management system** for project management via MCP tools. 
@@ -675,22 +697,75 @@ jq '.legacy_done_without_audit = [NEW_COUNT]' .task_project.json > tmp.$$.json &
 
 This helps trigger audit sessions at the right time (when total awaiting >= 10).
 
-### STEP 11.6: VERIFY YOUR FIX (MANDATORY)
+### STEP 11.6: VERIFY YOUR FIX (MANDATORY - DO NOT SKIP!)
 
-**Before considering any issue complete, you MUST verify your changes work.**
+## 🚨🚨🚨 CRITICAL: VERIFICATION IS NON-NEGOTIABLE 🚨🚨🚨
 
-#### For TypeScript/Compilation Fixes:
+**YOU MUST VERIFY BEFORE CLOSING ANY ISSUE. NO EXCEPTIONS.**
+
+An issue is **NOT FIXED** until you have **PROOF** the error count decreased.
+
+#### For TypeScript/Compilation Fixes - MANDATORY VERIFICATION:
 
 ```bash
-# Run TypeScript compiler on the entire project
-npx tsc --noEmit
+# 1. BEFORE making changes - record the baseline error count for YOUR FILE(s)
+BEFORE_COUNT=$(npx tsc --noEmit 2>&1 | grep "error TS" | grep "YOUR_FILE.ts" | wc -l)
+echo "BEFORE: $BEFORE_COUNT errors in YOUR_FILE.ts"
 
-# Or check specific file(s) you modified
-npx tsc --noEmit src/path/to/file.ts
+# 2. Make your changes...
 
-# Check for reduction in error count
-npx tsc --noEmit 2>&1 | grep -c "error TS"
+# 3. AFTER making changes - verify error count DECREASED
+AFTER_COUNT=$(npx tsc --noEmit 2>&1 | grep "error TS" | grep "YOUR_FILE.ts" | wc -l)
+echo "AFTER: $AFTER_COUNT errors in YOUR_FILE.ts"
+
+# 4. ONLY CLOSE IF: AFTER_COUNT < BEFORE_COUNT (or AFTER_COUNT = 0)
+if [ "$AFTER_COUNT" -lt "$BEFORE_COUNT" ]; then
+  echo "✅ VERIFIED: Errors reduced from $BEFORE_COUNT to $AFTER_COUNT"
+else
+  echo "❌ FAILED: Errors NOT reduced. DO NOT CLOSE THIS ISSUE."
+fi
 ```
+
+**⚠️ IF ERROR COUNT DID NOT DECREASE:**
+- DO NOT close the issue
+- DO NOT add "awaiting-audit" label  
+- Your fix did NOT work - investigate why
+- The issue remains OPEN until errors are actually fixed
+
+#### FORBIDDEN Actions:
+
+| ❌ FORBIDDEN | Why |
+|-------------|-----|
+| Closing without running tsc | You have no proof the fix worked |
+| Closing when error count unchanged | The fix did NOT work |
+| Closing when error count increased | You made it WORSE |
+| Claiming "tested manually" | TypeScript errors require tsc verification |
+| Closing and "will fix later" | Fix it NOW or leave it OPEN |
+| Claiming errors are "out of scope" | If spec says fix errors, fix ALL of them |
+| Marking project "100% complete" with errors remaining | Error count is the source of truth |
+
+#### If All Issues Are Closed But Errors Remain:
+
+**This means the project is NOT complete. You MUST:**
+
+```bash
+# 1. Check total remaining errors
+TOTAL_ERRORS=$(npx tsc --noEmit 2>&1 | grep -c "error TS")
+echo "Remaining errors: $TOTAL_ERRORS"
+
+# 2. If TOTAL_ERRORS > 0, identify which files still have errors
+npx tsc --noEmit 2>&1 | grep "error TS" | cut -d'(' -f1 | sort | uniq -c | sort -rn
+
+# 3. CREATE NEW ISSUES for each file/group with remaining errors
+# Use bd create (BEADS) or your task manager to track them
+
+# 4. DO NOT claim the project is complete
+# Update .task_project.json to reflect actual status
+```
+
+**The project completion formula:**
+- ✅ Complete = All issues closed AND error count = 0
+- ❌ NOT Complete = Issues closed but error count > 0
 
 #### For Feature Implementation:
 
@@ -801,34 +876,75 @@ Before context fills up:
 
 **A project is NOT complete until ALL of the following are true:**
 
-| Criterion | Required |
-|-----------|----------|
-| All issues closed | ✅ Yes |
-| All closed issues have "awaiting-audit" OR "audited" label | ✅ Yes |
-| **features_awaiting_audit = 0** | ✅ Yes |
-| **All features have "audited" label** | ✅ Yes |
-| TypeScript/lint errors = 0 (or within acceptable threshold) | ✅ Yes |
-| Build succeeds | ✅ Yes |
+| Criterion | Required | How to Verify |
+|-----------|----------|---------------|
+| All issues closed | ✅ Yes | `bd list --status open --json \| jq 'length'` = 0 (or 1 for META) |
+| All closed issues have audit label | ✅ Yes | `bd list --status closed --no-labels --json \| jq 'length'` = 0 |
+| **features_awaiting_audit = 0** | ✅ Yes | `bd list --label awaiting-audit --json \| jq 'length'` = 0 |
+| **All features have "audited" label** | ✅ Yes | Audit sessions have approved all work |
+| **TypeScript errors = 0** | ✅ Yes | `npx tsc --noEmit 2>&1 \| grep -c "error TS"` = 0 |
+| Build succeeds | ✅ Yes | `npm run build` exits with code 0 |
 
-**NEVER mark a project as "100% COMPLETE" if:**
-- ❌ There are issues awaiting audit (features_awaiting_audit > 0)
-- ❌ There are issues without audit labels (neither "awaiting-audit" nor "audited")
-- ❌ TypeScript errors remain above the acceptable threshold
-- ❌ The build is failing
+### 🚨🚨🚨 THE ERROR COUNT IS THE SOURCE OF TRUTH 🚨🚨🚨
 
-**When updating `.task_project.json`:**
-```json
-{
-  "features_awaiting_audit": 70,  // MUST track this!
-  "features_audited": 0,          // MUST track this!
-  "verification_status": {
-    "project_marked_complete": "FALSE - 70 issues still awaiting audit",
-    "audit_status": "INCOMPLETE - 0/70 features audited"
-  }
-}
+**Issue status means NOTHING if errors remain.**
+
+```bash
+# THIS is what determines completion - not issue counts:
+ERROR_COUNT=$(npx tsc --noEmit 2>&1 | grep -c "error TS" || echo "0")
+
+if [ "$ERROR_COUNT" -gt 0 ]; then
+  echo "❌ PROJECT IS NOT COMPLETE - $ERROR_COUNT errors remain"
+  echo "Create issues for remaining errors. Do NOT claim completion."
+else
+  echo "✅ Zero errors - project may be complete (verify audit status)"
+fi
 ```
 
-**Closed ≠ Complete!** An issue is only truly complete after it passes audit.
+**NEVER mark a project as "100% COMPLETE" if:**
+- ❌ `tsc --noEmit` shows ANY errors (unless spec explicitly excludes them)
+- ❌ There are issues awaiting audit (features_awaiting_audit > 0)
+- ❌ There are issues without audit labels
+- ❌ The build is failing
+
+### FORBIDDEN: False Completion Claims
+
+| ❌ FORBIDDEN Claim | Reality |
+|-------------------|---------|
+| "All issues closed = project complete" | Issues closed but 500 errors remain = NOT complete |
+| "Remaining errors are out of scope" | If spec says "fix all errors", they're IN scope |
+| "Test file errors don't count" | Unless spec explicitly excludes them |
+| "Complex errors need separate project" | Create new issues in THIS project |
+| "We achieved 90% reduction" | Spec says 100%. 90% = incomplete |
+
+### If You Find Remaining Errors After Issues Closed:
+
+**You have discovered incomplete work. You MUST:**
+
+1. **Create new issues** for unfixed files:
+   ```bash
+   # For each file with errors, create a BEADS issue:
+   bd create "Fix TypeScript errors in useClipboard.ts (21 errors)" \
+     --description "File still has 21 TypeScript errors that need fixing" \
+     --priority 2 --type task --labels typescript-fix
+   ```
+
+2. **Update .task_project.json** to reflect reality:
+   ```json
+   {
+     "verification_status": {
+       "project_marked_complete": "FALSE - 500 TypeScript errors remain",
+       "actual_error_count": 500,
+       "issues_needed": "New issues created for remaining errors"
+     }
+   }
+   ```
+
+3. **DO NOT rationalize** - The errors are real. Create issues and fix them.
+
+**Closed ≠ Complete!** An issue is only truly complete after:
+1. Error count for that file = 0
+2. It passes audit
 
 ---
 
