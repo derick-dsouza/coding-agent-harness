@@ -24,6 +24,7 @@ TOTAL_TSC_ERRORS="--"
 TEST_TSC_ERRORS="--"
 NON_TEST_TSC_ERRORS="--"
 BUN_STATUS="${YELLOW}pending${RESET}"
+LAST_BUILD_CHECK="never"
 
 if [ ! -d "$FRONTEND_DIR" ]; then
   echo -e "${RED}Error:${RESET} frontend directory '$FRONTEND_DIR' not found!"
@@ -175,9 +176,14 @@ while true; do
 
     cd - >/dev/null
     LAST_FULL=$NOW
+    LAST_BUILD_CHECK=$(date +"%H:%M:%S")
   fi
 
-  echo -e "${BLUE}TypeScript Errors (tsc):${RESET}"
+  # Calculate time until next full check
+  TIME_UNTIL_NEXT=$((FULL_INTERVAL - ELAPSED_FULL))
+  [ $TIME_UNTIL_NEXT -lt 0 ] && TIME_UNTIL_NEXT=0
+
+  echo -e "${BLUE}TypeScript Errors (tsc):${RESET} ${CYAN}(last check: ${LAST_BUILD_CHECK}, next in ${TIME_UNTIL_NEXT}s)${RESET}"
   if [[ "$TOTAL_TSC_ERRORS" =~ ^[0-9]+$ ]] && [ "$TOTAL_TSC_ERRORS" -gt 0 ]; then
     COLOR="$RED"
   else
