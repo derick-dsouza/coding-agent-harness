@@ -39,6 +39,61 @@ fi
 # Clean shutdown handler
 cleanup() {
   echo -e "\n${CYAN}Dashboard shutting down...${RESET}"
+  
+  # Clean up stale worker locks (heartbeat > 90s old)
+  WORKERS_DIR=".autocode-workers"
+  if [ -d "$WORKERS_DIR" ]; then
+    NOW_TS=$(date +%s)
+    HEARTBEAT_TIMEOUT=90
+    CLEANED=0
+    
+    shopt -s nullglob
+    for lock_file in "$WORKERS_DIR"/worker-*.lock; do
+      if [ -f "$lock_file" ]; then
+        HEARTBEAT=$(jq -r '.heartbeat // 0' "$lock_file" 2>/dev/null | cut -d. -f1)
+        if [ -n "$HEARTBEAT" ] && [ "$HEARTBEAT" -gt 0 ]; then
+          AGE=$((NOW_TS - HEARTBEAT))
+          if [ "$AGE" -ge "$HEARTBEAT_TIMEOUT" ]; then
+            WORKER_ID=$(jq -r '.worker_id // "unknown"' "$lock_file" 2>/dev/null)
+            rm -f "$lock_file"
+            
+            # Also clean up claims and file locks from this dead worker
+            if [ -d "$WORKERS_DIR/claims" ]; then
+              for claim_file in "$WORKERS_DIR/claims/"*.claim; do
+                if [ -f "$claim_file" ]; then
+                  CLAIM_WORKER=$(jq -r '.worker_id // ""' "$claim_file" 2>/dev/null)
+                  if [ "$CLAIM_WORKER" = "$WORKER_ID" ]; then
+                    rm -f "$claim_file"
+                    CLEANED=$((CLEANED + 1))
+                  fi
+                fi
+              done
+            fi
+            
+            if [ -d "$WORKERS_DIR/files" ]; then
+              for file_lock in "$WORKERS_DIR/files/"*.lock; do
+                if [ -f "$file_lock" ]; then
+                  LOCK_WORKER=$(jq -r '.worker_id // ""' "$file_lock" 2>/dev/null)
+                  if [ "$LOCK_WORKER" = "$WORKER_ID" ]; then
+                    rm -f "$file_lock"
+                    CLEANED=$((CLEANED + 1))
+                  fi
+                fi
+              done
+            fi
+            
+            echo -e "  ${YELLOW}Cleaned up stale worker: ${WORKER_ID:0:8}${RESET}"
+          fi
+        fi
+      fi
+    done
+    shopt -u nullglob
+    
+    if [ "$CLEANED" -gt 0 ]; then
+      echo -e "  ${GREEN}Cleaned $CLEANED stale claims/locks${RESET}"
+    fi
+  fi
+  
   exit 0
 }
 
