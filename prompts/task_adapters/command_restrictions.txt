@@ -17,7 +17,7 @@
 - **Navigation**: `cd` (use absolute paths or `git -C <path>` instead)
 - **Package managers**: `npx`, `bun`, `pnpm`, `yarn`, `pip`, `pipenv`
 - **File search**: `find`, `locate`, `which`, `whereis`
-- **Text processing**: `sed`, `awk`, `cut`, `tr`, `sort`, `uniq`, `diff`, `patch`
+- **Text processing**: `sed`, `awk`, `cut`, `tr`, `sort`, `uniq`, `diff`, `patch`, `tee`
 - **File operations**: `mv`, `rm`, `touch`, `ln`, `readlink`
 - **Archives**: `tar`, `zip`, `unzip`, `gzip`, `gunzip`
 - **Network**: `curl`, `wget`, `ping`, `netstat`, `telnet`, `ssh`, `scp`
@@ -32,6 +32,8 @@
 - Instead of `sed`/`awk`: use the Read and Edit tools
 - Instead of `curl`: use MCP web_search tool or file operations
 - Instead of `which command`: check if files exist directly
+- Instead of `sort`: use `jq 'sort_by(.field)'` for JSON, or process in Python
+- Instead of `tee`: redirect output with `>` or `>>`, or use Create tool for files
 
 ### ⚡ BEST PRACTICES:
 1. **Use SDK tools first**: Read, Edit, Create tools are preferred
