@@ -151,10 +151,12 @@ while true; do
       echo "tsc not found in node_modules" > "$TMP_OUT"
     fi
 
-    TOTAL_TSC_ERRORS=$(grep -E "error TS[0-9]+" "$TMP_OUT" | wc -l | tr -d " ")
-    TEST_TSC_ERRORS=$(grep -E "error TS[0-9]+" "$TMP_OUT" \
-      | grep -E "\.test\.ts|\.spec\.ts|__tests__" \
-      | wc -l | tr -d " ")
+    TOTAL_TSC_ERRORS=$(grep -E "error TS[0-9]+" "$TMP_OUT" 2>/dev/null | wc -l | tr -d " " || echo "0")
+    TEST_TSC_ERRORS=$(grep -E "error TS[0-9]+" "$TMP_OUT" 2>/dev/null \
+      | grep -E "\.test\.ts|\.spec\.ts|__tests__" 2>/dev/null \
+      | wc -l | tr -d " " || echo "0")
+    [ -z "$TOTAL_TSC_ERRORS" ] && TOTAL_TSC_ERRORS=0
+    [ -z "$TEST_TSC_ERRORS" ] && TEST_TSC_ERRORS=0
     NON_TEST_TSC_ERRORS=$((TOTAL_TSC_ERRORS - TEST_TSC_ERRORS))
 
     rm "$TMP_OUT"
@@ -162,8 +164,10 @@ while true; do
     # Build check (npm run build) - suppress all output
     if [ -f package.json ]; then
       BUILD_OUT=$(mktemp)
-      npm run build > "$BUILD_OUT" 2>&1 || true
+      set +e  # Temporarily disable exit on error
+      npm run build > "$BUILD_OUT" 2>&1
       BUILD_EXIT=$?
+      set -e  # Re-enable exit on error
       if [ $BUILD_EXIT -eq 0 ]; then
         BUN_STATUS="${GREEN}Succeeded${RESET}"
       else
