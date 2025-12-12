@@ -11,7 +11,7 @@ RESET="\033[0m"
 BOLD="\033[1m"
 
 # Usage
-FRONTEND_DIR="${1:-saUI}"
+FRONTEND_DIR="$1"
 LABEL_AWAITING_AUDIT="awaiting-audit"
 LABEL_AUDITED="audited"
 
@@ -19,12 +19,26 @@ BEADS_INTERVAL=30
 FULL_INTERVAL=60
 LAST_FULL=0
 
+# Check if frontend directory exists
+FRONTEND_EXISTS=false
+if [ -n "$FRONTEND_DIR" ] && [ -d "$FRONTEND_DIR" ]; then
+  FRONTEND_EXISTS=true
+fi
+
 # Initialize variables for first display
-TOTAL_TSC_ERRORS="--"
-TEST_TSC_ERRORS="--"
-NON_TEST_TSC_ERRORS="--"
-BUN_STATUS="${YELLOW}pending${RESET}"
-LAST_BUILD_CHECK="never"
+if [ "$FRONTEND_EXISTS" = true ]; then
+  TOTAL_TSC_ERRORS="--"
+  TEST_TSC_ERRORS="--"
+  NON_TEST_TSC_ERRORS="--"
+  BUN_STATUS="${YELLOW}pending${RESET}"
+  LAST_BUILD_CHECK="never"
+else
+  TOTAL_TSC_ERRORS="${YELLOW}N/A${RESET}"
+  TEST_TSC_ERRORS="${YELLOW}N/A${RESET}"
+  NON_TEST_TSC_ERRORS="${YELLOW}N/A${RESET}"
+  BUN_STATUS="${YELLOW}N/A (no frontend)${RESET}"
+  LAST_BUILD_CHECK="never"
+fi
 
 # Previous run values for comparison (TypeScript)
 PREV_TOTAL_TSC_ERRORS=""
@@ -43,11 +57,6 @@ INIT_CLOSED_NO_LABELS=""
 INIT_CLOSED_AWAITING_AUDIT=""
 INIT_CLOSED_AUDITED=""
 INIT_IN_PROGRESS_ISSUES=""
-
-if [ ! -d "$FRONTEND_DIR" ]; then
-  echo -e "${RED}Error:${RESET} frontend directory '$FRONTEND_DIR' not found!"
-  exit 1
-fi
 
 # Clean shutdown handler
 cleanup() {
@@ -149,7 +158,11 @@ while true; do
 
   echo -e "${BLUE}${BOLD}================ AUTOCODE DASHBOARD ================${RESET}"
   echo -e "${CYAN}Updated:${RESET} $(date)"
-  echo -e "${CYAN}Frontend Dir:${RESET} $FRONTEND_DIR"
+  if [ -n "$FRONTEND_DIR" ]; then
+    echo -e "${CYAN}Frontend Dir:${RESET} $FRONTEND_DIR"
+  else
+    echo -e "${CYAN}Frontend Dir:${RESET} ${YELLOW}Not specified${RESET}"
+  fi
   echo -e "${CYAN}Refresh:${RESET} Issues every ${BEADS_INTERVAL}s, Full check every ${FULL_INTERVAL}s"
   echo
 
@@ -366,62 +379,71 @@ while true; do
   # Full check (TS + Build)
   # ——————————————————————————————————————————————
   if [ $ELAPSED_FULL -ge $FULL_INTERVAL ]; then
-    cd "$FRONTEND_DIR"
+    if [ "$FRONTEND_EXISTS" = true ]; then
+      cd "$FRONTEND_DIR"
 
-    # Save previous values for comparison
-    if [[ "$TOTAL_TSC_ERRORS" =~ ^[0-9]+$ ]]; then
-      PREV_TOTAL_TSC_ERRORS="$TOTAL_TSC_ERRORS"
-      PREV_TEST_TSC_ERRORS="$TEST_TSC_ERRORS"
-      PREV_NON_TEST_TSC_ERRORS="$NON_TEST_TSC_ERRORS"
-    fi
-
-    # TypeScript errors (use node_modules/.bin/tsc or npx)
-    TMP_OUT=$(mktemp)
-    if [ -f node_modules/.bin/tsc ]; then
-      node_modules/.bin/tsc --noEmit > "$TMP_OUT" 2>&1 || true
-    elif [ -f ../node_modules/.bin/tsc ]; then
-      ../node_modules/.bin/tsc --noEmit > "$TMP_OUT" 2>&1 || true
-    else
-      echo "tsc not found in node_modules" > "$TMP_OUT"
-    fi
-
-    TOTAL_TSC_ERRORS=$(grep -E "error TS[0-9]+" "$TMP_OUT" 2>/dev/null | wc -l | tr -d " " || echo "0")
-    TEST_TSC_ERRORS=$(grep -E "error TS[0-9]+" "$TMP_OUT" 2>/dev/null \
-      | grep -E "\.test\.ts|\.spec\.ts|__tests__" 2>/dev/null \
-      | wc -l | tr -d " " || echo "0")
-    [ -z "$TOTAL_TSC_ERRORS" ] && TOTAL_TSC_ERRORS=0
-    [ -z "$TEST_TSC_ERRORS" ] && TEST_TSC_ERRORS=0
-    NON_TEST_TSC_ERRORS=$((TOTAL_TSC_ERRORS - TEST_TSC_ERRORS))
-
-    # Capture initial TSC values on first successful run
-    if [ -z "$INIT_TOTAL_TSC_ERRORS" ] && [[ "$TOTAL_TSC_ERRORS" =~ ^[0-9]+$ ]]; then
-      INIT_TOTAL_TSC_ERRORS="$TOTAL_TSC_ERRORS"
-      INIT_TEST_TSC_ERRORS="$TEST_TSC_ERRORS"
-      INIT_NON_TEST_TSC_ERRORS="$NON_TEST_TSC_ERRORS"
-    fi
-
-    rm "$TMP_OUT"
-
-    # Build check (bun run build) - suppress all output
-    if [ -f package.json ]; then
-      BUILD_OUT=$(mktemp)
-      set +e  # Temporarily disable exit on error
-      bun run build > "$BUILD_OUT" 2>&1
-      BUILD_EXIT=$?
-      set -e  # Re-enable exit on error
-      if [ $BUILD_EXIT -eq 0 ]; then
-        BUN_STATUS="${GREEN}Succeeded${RESET}"
-      else
-        BUN_STATUS="${RED}Failed${RESET}"
+      # Save previous values for comparison
+      if [[ "$TOTAL_TSC_ERRORS" =~ ^[0-9]+$ ]]; then
+        PREV_TOTAL_TSC_ERRORS="$TOTAL_TSC_ERRORS"
+        PREV_TEST_TSC_ERRORS="$TEST_TSC_ERRORS"
+        PREV_NON_TEST_TSC_ERRORS="$NON_TEST_TSC_ERRORS"
       fi
-      rm "$BUILD_OUT"
-    else
-      BUN_STATUS="${YELLOW}no package.json${RESET}"
-    fi
 
-    cd - >/dev/null
+      # TypeScript errors (use node_modules/.bin/tsc or npx)
+      TMP_OUT=$(mktemp)
+      if [ -f node_modules/.bin/tsc ]; then
+        node_modules/.bin/tsc --noEmit > "$TMP_OUT" 2>&1 || true
+      elif [ -f ../node_modules/.bin/tsc ]; then
+        ../node_modules/.bin/tsc --noEmit > "$TMP_OUT" 2>&1 || true
+      else
+        echo "tsc not found in node_modules" > "$TMP_OUT"
+      fi
+
+      TOTAL_TSC_ERRORS=$(grep -E "error TS[0-9]+" "$TMP_OUT" 2>/dev/null | wc -l | tr -d " " || echo "0")
+      TEST_TSC_ERRORS=$(grep -E "error TS[0-9]+" "$TMP_OUT" 2>/dev/null \
+        | grep -E "\.test\.ts|\.spec\.ts|__tests__" 2>/dev/null \
+        | wc -l | tr -d " " || echo "0")
+      [ -z "$TOTAL_TSC_ERRORS" ] && TOTAL_TSC_ERRORS=0
+      [ -z "$TEST_TSC_ERRORS" ] && TEST_TSC_ERRORS=0
+      NON_TEST_TSC_ERRORS=$((TOTAL_TSC_ERRORS - TEST_TSC_ERRORS))
+
+      # Capture initial TSC values on first successful run
+      if [ -z "$INIT_TOTAL_TSC_ERRORS" ] && [[ "$TOTAL_TSC_ERRORS" =~ ^[0-9]+$ ]]; then
+        INIT_TOTAL_TSC_ERRORS="$TOTAL_TSC_ERRORS"
+        INIT_TEST_TSC_ERRORS="$TEST_TSC_ERRORS"
+        INIT_NON_TEST_TSC_ERRORS="$NON_TEST_TSC_ERRORS"
+      fi
+
+      rm "$TMP_OUT"
+
+      # Build check (bun run build) - suppress all output
+      if [ -f package.json ]; then
+        BUILD_OUT=$(mktemp)
+        set +e  # Temporarily disable exit on error
+        bun run build > "$BUILD_OUT" 2>&1
+        BUILD_EXIT=$?
+        set -e  # Re-enable exit on error
+        if [ $BUILD_EXIT -eq 0 ]; then
+          BUN_STATUS="${GREEN}Succeeded${RESET}"
+        else
+          BUN_STATUS="${RED}Failed${RESET}"
+        fi
+        rm "$BUILD_OUT"
+      else
+        BUN_STATUS="${YELLOW}no package.json${RESET}"
+      fi
+
+      cd - >/dev/null
+      LAST_BUILD_CHECK=$(date +"%H:%M:%S")
+    else
+      # Skip frontend checks if directory doesn't exist
+      TOTAL_TSC_ERRORS="${YELLOW}N/A${RESET}"
+      TEST_TSC_ERRORS="${YELLOW}N/A${RESET}"
+      NON_TEST_TSC_ERRORS="${YELLOW}N/A${RESET}"
+      BUN_STATUS="${YELLOW}N/A (no frontend)${RESET}"
+    fi
+    
     LAST_FULL=$NOW
-    LAST_BUILD_CHECK=$(date +"%H:%M:%S")
   fi
 
   # Calculate time until next full check
@@ -466,32 +488,39 @@ while true; do
     fi
   }
   
-  if [[ "$TOTAL_TSC_ERRORS" =~ ^[0-9]+$ ]] && [ "$TOTAL_TSC_ERRORS" -gt 0 ]; then
-    COLOR="$RED"
+  # Display TypeScript errors or N/A if frontend doesn't exist
+  if [ "$FRONTEND_EXISTS" = true ]; then
+    if [[ "$TOTAL_TSC_ERRORS" =~ ^[0-9]+$ ]] && [ "$TOTAL_TSC_ERRORS" -gt 0 ]; then
+      COLOR="$RED"
+    else
+      COLOR="$YELLOW"
+    fi
+    DELTA_LAST=$(format_tsc_delta_last "$TOTAL_TSC_ERRORS" "$PREV_TOTAL_TSC_ERRORS")
+    DELTA_START=$(format_tsc_delta_start "$TOTAL_TSC_ERRORS" "$INIT_TOTAL_TSC_ERRORS")
+    echo -e "  Total Errors        : ${COLOR}${TOTAL_TSC_ERRORS}${RESET} $DELTA_LAST $DELTA_START"
+    
+    if [[ "$TEST_TSC_ERRORS" =~ ^[0-9]+$ ]] && [ "$TEST_TSC_ERRORS" -gt 0 ]; then
+      COLOR="$YELLOW"
+    else
+      COLOR="$GREEN"
+    fi
+    DELTA_LAST=$(format_tsc_delta_last "$TEST_TSC_ERRORS" "$PREV_TEST_TSC_ERRORS")
+    DELTA_START=$(format_tsc_delta_start "$TEST_TSC_ERRORS" "$INIT_TEST_TSC_ERRORS")
+    echo -e "  Test File Errors    : ${COLOR}${TEST_TSC_ERRORS}${RESET} $DELTA_LAST $DELTA_START"
+    
+    if [[ "$NON_TEST_TSC_ERRORS" =~ ^[0-9]+$ ]] && [ "$NON_TEST_TSC_ERRORS" -gt 0 ]; then
+      COLOR="$YELLOW"
+    else
+      COLOR="$GREEN"
+    fi
+    DELTA_LAST=$(format_tsc_delta_last "$NON_TEST_TSC_ERRORS" "$PREV_NON_TEST_TSC_ERRORS")
+    DELTA_START=$(format_tsc_delta_start "$NON_TEST_TSC_ERRORS" "$INIT_NON_TEST_TSC_ERRORS")
+    echo -e "  Non-Test File Errors: ${COLOR}${NON_TEST_TSC_ERRORS}${RESET} $DELTA_LAST $DELTA_START"
   else
-    COLOR="$YELLOW"
+    echo -e "  Total Errors        : ${YELLOW}N/A${RESET} (no frontend directory)"
+    echo -e "  Test File Errors    : ${YELLOW}N/A${RESET} (no frontend directory)"
+    echo -e "  Non-Test File Errors: ${YELLOW}N/A${RESET} (no frontend directory)"
   fi
-  DELTA_LAST=$(format_tsc_delta_last "$TOTAL_TSC_ERRORS" "$PREV_TOTAL_TSC_ERRORS")
-  DELTA_START=$(format_tsc_delta_start "$TOTAL_TSC_ERRORS" "$INIT_TOTAL_TSC_ERRORS")
-  echo -e "  Total Errors        : ${COLOR}${TOTAL_TSC_ERRORS}${RESET} $DELTA_LAST $DELTA_START"
-  
-  if [[ "$TEST_TSC_ERRORS" =~ ^[0-9]+$ ]] && [ "$TEST_TSC_ERRORS" -gt 0 ]; then
-    COLOR="$YELLOW"
-  else
-    COLOR="$GREEN"
-  fi
-  DELTA_LAST=$(format_tsc_delta_last "$TEST_TSC_ERRORS" "$PREV_TEST_TSC_ERRORS")
-  DELTA_START=$(format_tsc_delta_start "$TEST_TSC_ERRORS" "$INIT_TEST_TSC_ERRORS")
-  echo -e "  Test File Errors    : ${COLOR}${TEST_TSC_ERRORS}${RESET} $DELTA_LAST $DELTA_START"
-  
-  if [[ "$NON_TEST_TSC_ERRORS" =~ ^[0-9]+$ ]] && [ "$NON_TEST_TSC_ERRORS" -gt 0 ]; then
-    COLOR="$YELLOW"
-  else
-    COLOR="$GREEN"
-  fi
-  DELTA_LAST=$(format_tsc_delta_last "$NON_TEST_TSC_ERRORS" "$PREV_NON_TEST_TSC_ERRORS")
-  DELTA_START=$(format_tsc_delta_start "$NON_TEST_TSC_ERRORS" "$INIT_NON_TEST_TSC_ERRORS")
-  echo -e "  Non-Test File Errors: ${COLOR}${NON_TEST_TSC_ERRORS}${RESET} $DELTA_LAST $DELTA_START"
   echo
   echo -e "${BLUE}Build Status:${RESET} $BUN_STATUS"
   echo
