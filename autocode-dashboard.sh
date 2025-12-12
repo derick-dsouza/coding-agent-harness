@@ -31,6 +31,11 @@ PREV_TOTAL_TSC_ERRORS=""
 PREV_TEST_TSC_ERRORS=""
 PREV_NON_TEST_TSC_ERRORS=""
 
+# Initial TypeScript counts (captured at first tsc run)
+INIT_TOTAL_TSC_ERRORS=""
+INIT_TEST_TSC_ERRORS=""
+INIT_NON_TEST_TSC_ERRORS=""
+
 # Initial BEADS counts (captured at startup)
 INIT_TOTAL_ISSUES=""
 INIT_OPEN_ISSUES=""
@@ -355,6 +360,13 @@ while true; do
     [ -z "$TEST_TSC_ERRORS" ] && TEST_TSC_ERRORS=0
     NON_TEST_TSC_ERRORS=$((TOTAL_TSC_ERRORS - TEST_TSC_ERRORS))
 
+    # Capture initial TSC values on first successful run
+    if [ -z "$INIT_TOTAL_TSC_ERRORS" ] && [[ "$TOTAL_TSC_ERRORS" =~ ^[0-9]+$ ]]; then
+      INIT_TOTAL_TSC_ERRORS="$TOTAL_TSC_ERRORS"
+      INIT_TEST_TSC_ERRORS="$TEST_TSC_ERRORS"
+      INIT_NON_TEST_TSC_ERRORS="$NON_TEST_TSC_ERRORS"
+    fi
+
     rm "$TMP_OUT"
 
     # Build check (bun run build) - suppress all output
@@ -385,18 +397,36 @@ while true; do
 
   echo -e "${BLUE}TypeScript Errors (tsc):${RESET} ${CYAN}(last check: ${LAST_BUILD_CHECK}, next in ${TIME_UNTIL_NEXT}s)${RESET}"
   
-  # Helper function to format delta
-  format_delta() {
+  # Helper function to format delta from last run
+  format_tsc_delta_last() {
     local curr="$1"
     local prev="$2"
     if [ -n "$prev" ] && [[ "$curr" =~ ^[0-9]+$ ]] && [[ "$prev" =~ ^[0-9]+$ ]]; then
       local diff=$((curr - prev))
       if [ $diff -lt 0 ]; then
-        echo "${GREEN}(was $prev, ${diff})${RESET}"
+        echo "${GREEN}(${diff})${RESET}"
       elif [ $diff -gt 0 ]; then
-        echo "${RED}(was $prev, +${diff})${RESET}"
+        echo "${RED}(+${diff})${RESET}"
       else
-        echo "${CYAN}(was $prev, no change)${RESET}"
+        echo "${CYAN}(0)${RESET}"
+      fi
+    else
+      echo ""
+    fi
+  }
+  
+  # Helper function to format delta from session start
+  format_tsc_delta_start() {
+    local curr="$1"
+    local init="$2"
+    if [ -n "$init" ] && [[ "$curr" =~ ^[0-9]+$ ]] && [[ "$init" =~ ^[0-9]+$ ]]; then
+      local diff=$((curr - init))
+      if [ $diff -lt 0 ]; then
+        echo "${GREEN}[start: $init, ${diff}]${RESET}"
+      elif [ $diff -gt 0 ]; then
+        echo "${RED}[start: $init, +${diff}]${RESET}"
+      else
+        echo "${CYAN}[start: $init, 0]${RESET}"
       fi
     else
       echo ""
@@ -408,24 +438,27 @@ while true; do
   else
     COLOR="$YELLOW"
   fi
-  DELTA=$(format_delta "$TOTAL_TSC_ERRORS" "$PREV_TOTAL_TSC_ERRORS")
-  echo -e "  Total Errors        : ${COLOR}${TOTAL_TSC_ERRORS}${RESET} $DELTA"
+  DELTA_LAST=$(format_tsc_delta_last "$TOTAL_TSC_ERRORS" "$PREV_TOTAL_TSC_ERRORS")
+  DELTA_START=$(format_tsc_delta_start "$TOTAL_TSC_ERRORS" "$INIT_TOTAL_TSC_ERRORS")
+  echo -e "  Total Errors        : ${COLOR}${TOTAL_TSC_ERRORS}${RESET} $DELTA_LAST $DELTA_START"
   
   if [[ "$TEST_TSC_ERRORS" =~ ^[0-9]+$ ]] && [ "$TEST_TSC_ERRORS" -gt 0 ]; then
     COLOR="$YELLOW"
   else
     COLOR="$GREEN"
   fi
-  DELTA=$(format_delta "$TEST_TSC_ERRORS" "$PREV_TEST_TSC_ERRORS")
-  echo -e "  Test File Errors    : ${COLOR}${TEST_TSC_ERRORS}${RESET} $DELTA"
+  DELTA_LAST=$(format_tsc_delta_last "$TEST_TSC_ERRORS" "$PREV_TEST_TSC_ERRORS")
+  DELTA_START=$(format_tsc_delta_start "$TEST_TSC_ERRORS" "$INIT_TEST_TSC_ERRORS")
+  echo -e "  Test File Errors    : ${COLOR}${TEST_TSC_ERRORS}${RESET} $DELTA_LAST $DELTA_START"
   
   if [[ "$NON_TEST_TSC_ERRORS" =~ ^[0-9]+$ ]] && [ "$NON_TEST_TSC_ERRORS" -gt 0 ]; then
     COLOR="$YELLOW"
   else
     COLOR="$GREEN"
   fi
-  DELTA=$(format_delta "$NON_TEST_TSC_ERRORS" "$PREV_NON_TEST_TSC_ERRORS")
-  echo -e "  Non-Test File Errors: ${COLOR}${NON_TEST_TSC_ERRORS}${RESET} $DELTA"
+  DELTA_LAST=$(format_tsc_delta_last "$NON_TEST_TSC_ERRORS" "$PREV_NON_TEST_TSC_ERRORS")
+  DELTA_START=$(format_tsc_delta_start "$NON_TEST_TSC_ERRORS" "$INIT_NON_TEST_TSC_ERRORS")
+  echo -e "  Non-Test File Errors: ${COLOR}${NON_TEST_TSC_ERRORS}${RESET} $DELTA_LAST $DELTA_START"
   echo
   echo -e "${BLUE}Build Status:${RESET} $BUN_STATUS"
   echo
