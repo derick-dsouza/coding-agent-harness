@@ -116,6 +116,20 @@ cleanup() {
       fi
     fi
     
+    # Clean up stale audit lock (> 1800s / 30min old)
+    if [ -f "$WORKERS_DIR/audit.lock" ]; then
+      AUDIT_TIME=$(jq -r '.locked_at // 0' "$WORKERS_DIR/audit.lock" 2>/dev/null | cut -d. -f1)
+      if [ -n "$AUDIT_TIME" ] && [ "$AUDIT_TIME" -gt 0 ]; then
+        AUDIT_AGE=$((NOW_TS - AUDIT_TIME))
+        if [ "$AUDIT_AGE" -ge 1800 ]; then
+          AUDIT_WORKER=$(jq -r '.worker_id // "unknown"' "$WORKERS_DIR/audit.lock" 2>/dev/null)
+          rm -f "$WORKERS_DIR/audit.lock"
+          echo -e "  ${YELLOW}Cleaned up stale audit lock: ${AUDIT_WORKER:0:8} (${AUDIT_AGE}s old)${RESET}"
+          CLEANED=$((CLEANED + 1))
+        fi
+      fi
+    fi
+    
     if [ "$CLEANED" -gt 0 ]; then
       echo -e "  ${GREEN}Cleaned $CLEANED stale claims/locks${RESET}"
     fi
@@ -258,6 +272,24 @@ while true; do
       fi
     fi
     
+    # Check audit lock
+    AUDIT_LOCK_STATUS="${GREEN}Free${RESET}"
+    AUDIT_LOCK_HOLDER=""
+    if [ -f "$WORKERS_DIR/audit.lock" ]; then
+      AUDIT_WORKER=$(jq -r '.worker_id // ""' "$WORKERS_DIR/audit.lock" 2>/dev/null)
+      AUDIT_TIME=$(jq -r '.locked_at // 0' "$WORKERS_DIR/audit.lock" 2>/dev/null | cut -d. -f1)
+      if [ -n "$AUDIT_WORKER" ] && [ -n "$AUDIT_TIME" ] && [ "$AUDIT_TIME" -gt 0 ]; then
+        AUDIT_AGE=$((NOW_TS - AUDIT_TIME))
+        if [ "$AUDIT_AGE" -lt 1800 ]; then  # 30 min timeout for audit
+          AUDIT_LOCK_STATUS="${CYAN}Running${RESET}"
+          AUDIT_LOCK_HOLDER=" (worker: ${AUDIT_WORKER:0:8}, ${AUDIT_AGE}s ago)"
+        else
+          AUDIT_LOCK_STATUS="${RED}Stale${RESET}"
+          AUDIT_LOCK_HOLDER=" (${AUDIT_AGE}s old, will auto-cleanup)"
+        fi
+      fi
+    fi
+    
     # Count decomposition requests
     DECOMP_COUNT=0
     DECOMP_PENDING=0
@@ -279,6 +311,7 @@ while true; do
     COLOR=$( [ "$ACTIVE_WORKERS" -gt 1 ] && echo "$CYAN" || echo "$GREEN" )
     echo -e "  Active Workers      : ${COLOR}${ACTIVE_WORKERS}${RESET}"
     echo -e "  Init Lock           : ${INIT_LOCK_STATUS}${INIT_LOCK_HOLDER}"
+    echo -e "  Audit Lock          : ${AUDIT_LOCK_STATUS}${AUDIT_LOCK_HOLDER}"
     COLOR=$( [ "$CLAIM_COUNT" -gt 0 ] && echo "$YELLOW" || echo "$GREEN" )
     echo -e "  Issue Claims        : ${COLOR}${CLAIM_COUNT}${RESET}"
     COLOR=$( [ "$FILE_LOCK_COUNT" -gt 0 ] && echo "$YELLOW" || echo "$GREEN" )

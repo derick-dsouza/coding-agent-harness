@@ -102,6 +102,157 @@ For other task managers (GitHub Issues, BEADS), caching may work differently or 
 
 ---
 
+## 🎯 BEADS AUDIT WORKFLOW (DETERMINISTIC - MUST FOLLOW EXACTLY)
+
+**If your task management system is BEADS**, follow this deterministic workflow:
+
+### STEP 0: GET ALL AWAITING-AUDIT ISSUES (MANDATORY FIRST STEP)
+
+```bash
+# Get the COMPLETE list of issues awaiting audit - this is your audit scope
+AUDIT_LIST=$(bd list --status closed --label awaiting-audit --json)
+AUDIT_COUNT=$(echo "$AUDIT_LIST" | jq 'length')
+
+echo "=== AUDIT SCOPE ==="
+echo "Issues to audit: $AUDIT_COUNT"
+echo "$AUDIT_LIST" | jq -r '.[] | "  - \(.id): \(.title)"'
+```
+
+**Save this list - you MUST audit EVERY issue in it before ending the session.**
+
+### AUDIT EACH ISSUE (IN ORDER)
+
+For each issue in the list, follow this exact sequence:
+
+```bash
+# 1. Get issue details
+ISSUE_ID="[current issue ID from list]"
+bd show $ISSUE_ID --json | jq '.[0]'
+
+# 2. Read the description and test steps
+bd show $ISSUE_ID --json | jq -r '.[0].description'
+
+# 3. After reviewing/testing, record your decision:
+```
+
+### IF ISSUE PASSES AUDIT:
+
+```bash
+# Remove awaiting-audit, add audited
+bd label remove $ISSUE_ID awaiting-audit
+bd label add $ISSUE_ID audited
+
+# Add approval comment
+bd comment $ISSUE_ID "## Audit Passed ✅
+
+**Audited:** $(date)
+**Verification:** All test steps passed, code reviewed, no issues found.
+**Status:** Approved for production"
+```
+
+### IF ISSUE FAILS AUDIT (Has Bugs):
+
+```bash
+# 1. Create [FIX] issue with reference to original
+FIX_ISSUE_ID=$(bd create "[FIX] [Brief bug description]" \
+  --description "## Bug Found During Audit
+
+**Original Issue:** $ISSUE_ID
+**Original Title:** [title from issue]
+**Severity:** [HIGH/MEDIUM/LOW]
+
+### Problem
+[Detailed description of the bug]
+
+### Expected Behavior
+[What should happen]
+
+### Actual Behavior
+[What actually happens]
+
+### Steps to Reproduce
+1. [Step 1]
+2. [Step 2]
+3. [Observe bug]
+
+### Test Steps to Verify Fix
+1. [How to verify fix works]
+
+### Files Affected
+- [file1.ts]
+- [file2.vue]" \
+  --priority 2 \
+  --type task \
+  --labels fix,audit-finding \
+  --json | jq -r '.id')
+
+# 2. Update original issue
+bd update $ISSUE_ID --status open
+bd label remove $ISSUE_ID awaiting-audit
+bd label add $ISSUE_ID has-bugs
+
+# 3. Add comment to original issue linking to FIX
+bd comment $ISSUE_ID "## Audit Failed ❌
+
+**Audited:** $(date)
+**Issue Found:** [Brief description]
+**FIX Issue Created:** $FIX_ISSUE_ID
+
+This issue has been reopened. See FIX issue for details.
+Will be re-audited after fix is complete."
+```
+
+### AUDIT COMPLETION CHECKLIST (MANDATORY)
+
+**Before ending the audit session, verify:**
+
+```bash
+# 1. Check NO issues remain in awaiting-audit
+REMAINING=$(bd list --status closed --label awaiting-audit --json | jq 'length')
+echo "Remaining awaiting-audit: $REMAINING"
+
+# If REMAINING > 0, you have NOT completed the audit!
+# Go back and audit the remaining issues.
+
+# 2. Verify counts
+AUDITED=$(bd list --label audited --json | jq 'length')
+HAS_BUGS=$(bd list --label has-bugs --json | jq 'length')
+FIX_ISSUES=$(bd list --label fix --status open --json | jq 'length')
+
+echo "=== AUDIT SUMMARY ==="
+echo "Approved (audited): $AUDITED"
+echo "Failed (has-bugs): $HAS_BUGS"  
+echo "FIX issues created: $FIX_ISSUES"
+echo "Remaining to audit: $REMAINING"
+
+# 3. Update .task_project.json with actual counts
+jq --argjson audited "$AUDITED" --argjson awaiting "$REMAINING" \
+  '.features_audited = $audited | .features_awaiting_audit = $awaiting' \
+  .task_project.json > tmp.$$.json && mv tmp.$$.json .task_project.json
+```
+
+**🚨 DO NOT END SESSION IF `REMAINING > 0`! 🚨**
+
+### AUDIT TRACKING STATE
+
+The audit MUST update `.task_project.json`:
+
+```json
+{
+  "features_awaiting_audit": 0,
+  "features_audited": 45,
+  "last_audit_date": "2024-01-15T10:30:00Z",
+  "last_audit_stats": {
+    "total_audited": 10,
+    "passed": 8,
+    "failed": 2,
+    "fix_issues_created": 2
+  }
+}
+```
+
+---
+
 ## STEP 1: ORIENT YOURSELF
 
 Start by understanding the project and audit scope:

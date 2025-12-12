@@ -22,6 +22,11 @@ Usage (from project directory):
     python3 /path/to/harness/claim_issue.py request-decomposition ISSUE_ID "reason" "subtask1,subtask2,subtask3"
     python3 /path/to/harness/claim_issue.py list-decomposition-requests
     python3 /path/to/harness/claim_issue.py has-pending-work
+    
+    # Audit lock (only one worker can run audit at a time)
+    python3 /path/to/harness/claim_issue.py audit-lock
+    python3 /path/to/harness/claim_issue.py audit-release
+    python3 /path/to/harness/claim_issue.py audit-check
 
 The script automatically finds the project directory by looking for
 .autocode-workers, .beads, .task_project.json, or .git markers.
@@ -277,6 +282,52 @@ def cmd_has_pending_work():
         sys.exit(1)
 
 
+def cmd_audit_lock():
+    """Try to claim the audit lock."""
+    project_dir = get_project_dir()
+    coord = WorkerCoordinator(project_dir)
+    coord.register()
+    
+    if coord.try_claim_audit_lock():
+        print("OK: Claimed audit lock")
+        print(f"    Worker ID: {coord.worker_id}")
+        # Don't cleanup - keep the lock active
+        sys.exit(0)
+    else:
+        holder = coord.is_audit_locked()
+        print(f"LOCKED: Audit lock held by worker {holder}")
+        coord.cleanup()
+        sys.exit(1)
+
+
+def cmd_audit_release():
+    """Release the audit lock."""
+    project_dir = get_project_dir()
+    coord = WorkerCoordinator(project_dir)
+    coord.register()
+    coord._holds_audit_lock = True  # Assume we hold it to release
+    coord.release_audit_lock()
+    coord.cleanup()
+    print("OK: Released audit lock")
+
+
+def cmd_audit_check():
+    """Check if audit lock is held."""
+    project_dir = get_project_dir()
+    coord = WorkerCoordinator(project_dir)
+    coord.register()
+    
+    holder = coord.is_audit_locked()
+    coord.cleanup()
+    
+    if holder:
+        print(f"LOCKED: Audit lock held by worker {holder}")
+        sys.exit(1)
+    else:
+        print("AVAILABLE: Audit lock is free")
+        sys.exit(0)
+
+
 def main():
     if len(sys.argv) < 2:
         print(__doc__)
@@ -333,6 +384,15 @@ def main():
     
     elif cmd == 'has-pending-work':
         cmd_has_pending_work()
+    
+    elif cmd == 'audit-lock':
+        cmd_audit_lock()
+    
+    elif cmd == 'audit-release':
+        cmd_audit_release()
+    
+    elif cmd == 'audit-check':
+        cmd_audit_check()
     
     else:
         print(f"Unknown command: {cmd}")

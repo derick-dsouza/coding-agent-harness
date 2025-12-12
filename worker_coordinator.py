@@ -87,12 +87,14 @@ class WorkerCoordinator:
         self.files_dir = self.workers_dir / "files"
         self.decomp_dir = self.workers_dir / "decomposition_requests"
         self.init_lock_file = self.workers_dir / "init.lock"
+        self.audit_lock_file = self.workers_dir / "audit.lock"
         self.lock_file = self.workers_dir / f"worker-{self.worker_id}.lock"
         self.start_time = time.time()
         self.claimed_issues: List[str] = []
         self.claimed_files: List[str] = []
         self._registered = False
         self._holds_init_lock = False
+        self._holds_audit_lock = False
     
     def _generate_worker_id(self) -> str:
         """Generate a unique worker ID."""
@@ -917,6 +919,131 @@ class WorkerCoordinator:
         """
         return len(self.get_pending_decomposition_requests()) > 0
     
+    # =========================================================================
+    # AUDIT LOCK - Ensures only one worker runs audit at a time
+    # =========================================================================
+    
+    def _cleanup_stale_audit_lock(self) -> None:
+        """Remove audit lock if it's stale (worker dead or timeout exceeded)."""
+        if not self.audit_lock_file.exists():
+            return
+        
+        try:
+            data = json.loads(self.audit_lock_file.read_text())
+            lock_worker = data.get("worker_id")
+            lock_time = data.get("locked_at", 0)
+            lock_age = time.time() - lock_time
+            
+            # Audit lock timeout is longer (30 minutes) since audits take time
+            if lock_age > 1800:  # 30 minutes
+                self.audit_lock_file.unlink()
+                print(f"🧹 Released stale audit lock (timeout): {lock_worker}")
+                return
+            
+            # Check if worker is still alive
+            active_ids = {w["worker_id"] for w in self.get_active_workers()}
+            if lock_worker not in active_ids:
+                self.audit_lock_file.unlink()
+                print(f"🧹 Released stale audit lock (dead worker): {lock_worker}")
+        except (json.JSONDecodeError, IOError):
+            try:
+                self.audit_lock_file.unlink()
+            except:
+                pass
+    
+    def try_claim_audit_lock(self) -> bool:
+        """
+        Attempt to claim the audit lock.
+        
+        Only one worker should run audit sessions at a time to prevent
+        duplicate reviews and conflicting label updates.
+        
+        Returns:
+            True if lock claimed, False if another worker holds it
+        """
+        if not self._registered:
+            raise RuntimeError("Worker not registered. Call register() first.")
+        
+        if self._holds_audit_lock:
+            return True
+        
+        self._cleanup_stale_audit_lock()
+        
+        if self.audit_lock_file.exists():
+            try:
+                data = json.loads(self.audit_lock_file.read_text())
+                lock_worker = data.get("worker_id")
+                
+                if lock_worker == self.worker_id:
+                    self._holds_audit_lock = True
+                    return True
+                
+                return False
+            except (json.JSONDecodeError, IOError):
+                try:
+                    self.audit_lock_file.unlink()
+                except:
+                    return False
+        
+        try:
+            fd = os.open(
+                str(self.audit_lock_file),
+                os.O_CREAT | os.O_EXCL | os.O_WRONLY,
+                0o644
+            )
+            lock_data = json.dumps({
+                "worker_id": self.worker_id,
+                "locked_at": time.time(),
+                "pid": os.getpid(),
+                "purpose": "audit",
+            })
+            os.write(fd, lock_data.encode())
+            os.close(fd)
+            
+            self._holds_audit_lock = True
+            print(f"🔒 Claimed audit lock (worker: {self.worker_id})")
+            return True
+            
+        except FileExistsError:
+            return False
+        except OSError as e:
+            print(f"⚠️  Failed to claim audit lock: {e}")
+            return False
+    
+    def release_audit_lock(self) -> None:
+        """Release the audit lock."""
+        if not self._holds_audit_lock:
+            return
+        
+        try:
+            if self.audit_lock_file.exists():
+                data = json.loads(self.audit_lock_file.read_text())
+                if data.get("worker_id") == self.worker_id:
+                    self.audit_lock_file.unlink()
+                    print(f"🔓 Released audit lock (worker: {self.worker_id})")
+        except (json.JSONDecodeError, IOError, OSError):
+            pass
+        
+        self._holds_audit_lock = False
+    
+    def is_audit_locked(self) -> Optional[str]:
+        """
+        Check if audit lock is held.
+        
+        Returns:
+            Worker ID holding the lock, or None if not locked
+        """
+        self._cleanup_stale_audit_lock()
+        
+        if not self.audit_lock_file.exists():
+            return None
+        
+        try:
+            data = json.loads(self.audit_lock_file.read_text())
+            return data.get("worker_id")
+        except (json.JSONDecodeError, IOError):
+            return None
+    
     def cleanup(self) -> None:
         """
         Clean up this worker's registration and claims.
@@ -926,6 +1053,10 @@ class WorkerCoordinator:
         # Release init lock if we hold it
         if self._holds_init_lock:
             self.release_init_lock()
+        
+        # Release audit lock if we hold it
+        if self._holds_audit_lock:
+            self.release_audit_lock()
         
         # Release all our claims (this also releases associated files)
         for issue_id in list(self.claimed_issues):
