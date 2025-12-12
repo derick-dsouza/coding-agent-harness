@@ -5,6 +5,7 @@ A minimal harness demonstrating long-running autonomous coding with the Claude A
 ## Key Features
 
 - **Multi-Platform Task Management**: Support for Linear, GitHub Issues, BEADS (adapter pattern)
+- **Agent SDK Adapter Layer**: Mix and match Factory Droid, Aider, OpenCode, OpenAI Codex CLI, Gemini CLI, Mistral, and Claude per session type
 - **Real-time Visibility**: Watch agent progress in your task management system
 - **Session Handoff**: Agents communicate via issue comments, not text files
 - **Two-Agent Pattern**: Initializer creates project & issues, coding agents implement them
@@ -84,6 +85,13 @@ For testing with limited iterations:
 ```bash
 python autonomous_agent_demo.py --project-dir ./my_project --max-iterations 3
 ```
+
+### Agent SDK Selection (Mix & Match)
+
+- Default SDK comes from `autocode-defaults.json` (`claude-agent-sdk`), override with `--agent-sdk`
+- Use `--initializer-sdk`, `--coding-sdk`, `--audit-sdk` to pick different providers per session
+- Supported keys (in registry order): `claude-agent-sdk`, `factory-droid`, `aider`, `opencode`, `openai-codex-cli`, `gemini-cli`, `mistral`
+- CLI-based SDKs can run in dry-run mode with `--simulate-agent-sdk` or `AGENT_SDK_SIMULATE=1` (no external CLI needed)
 
 ## How It Works
 
