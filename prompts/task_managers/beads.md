@@ -170,20 +170,65 @@ bd label add ISSUE_ID needs-decomposition
 
 ### MULTI-WORKER BEADS COORDINATION
 
-When multiple workers are running in the same project, BEADS updates require coordination:
+When multiple workers are running in the same project, you MUST coordinate to avoid conflicts:
 
-1. **Issue Claiming**: Before starting work, check `.autocode-workers/claims/` to ensure no other worker has claimed the issue
-2. **Status Updates**: Only update status for issues YOU have claimed
-3. **Atomic Operations**: Complete your BEADS update immediately after making changes - don't leave partial state
-4. **Conflict Resolution**: If you see `.beads/` changes from another worker in git status, pull/merge before your updates
+**BEFORE starting work on any issue, ALWAYS claim it first:**
+
+The claim script is at `$AUTOCODE_HARNESS_DIR/claim_issue.py` (or find it with `which autocode` and look in the same directory).
 
 ```bash
-# Check if another worker is working on an issue
-ls .autocode-workers/claims/ 2>/dev/null | grep -q "ISSUE_ID" && echo "CLAIMED" || echo "AVAILABLE"
+# Find harness directory (if not set)
+HARNESS_DIR=$(dirname $(which autocode 2>/dev/null || echo "$HOME/coding-agent-harness"))
 
-# Always check git status before BEADS updates
-git status .beads/
+# Check if issue is available
+python3 $HARNESS_DIR/claim_issue.py check ISSUE_ID
+
+# Claim the issue (with files you'll modify)
+python3 $HARNESS_DIR/claim_issue.py claim ISSUE_ID src/file1.vue src/file2.ts
+
+# List all claimed issues
+python3 $HARNESS_DIR/claim_issue.py list
+
+# Check for file conflicts before editing
+python3 $HARNESS_DIR/claim_issue.py files src/file1.vue src/file2.ts
+
+# Release claim when done (or if you abandon the issue)
+python3 $HARNESS_DIR/claim_issue.py release ISSUE_ID
 ```
+
+**Coordination Rules:**
+
+1. **Always Claim First**: Before `bd update ISSUE_ID --status in_progress`, run `python3 claim_issue.py claim ISSUE_ID`
+2. **Include Files**: When claiming, list the files you plan to modify to prevent edit conflicts
+3. **Check Before Editing**: If claim fails, another worker is on it - pick a different issue
+4. **Release When Done**: After marking issue closed, release your claim
+5. **Handle Conflicts**: If you see "File has been modified" errors, another worker edited it - re-read and merge
+
+**Workflow with Claims:**
+
+```bash
+# 1. Find an issue to work on
+bd list --status open --json
+
+# 2. Check if it's available and claim it
+python3 $HARNESS_DIR/claim_issue.py check smartaffirm-xyz
+python3 $HARNESS_DIR/claim_issue.py claim smartaffirm-xyz src/components/MyComponent.vue
+
+# 3. Mark as in-progress in BEADS
+bd update smartaffirm-xyz --status in_progress
+
+# 4. Do your work...
+
+# 5. Mark done and release
+bd update smartaffirm-xyz --status closed
+bd label add smartaffirm-xyz awaiting-audit
+python3 $HARNESS_DIR/claim_issue.py release smartaffirm-xyz
+```
+
+**If Claim Fails:**
+- The issue or files are claimed by another worker
+- Pick a DIFFERENT issue - don't try to work on claimed issues
+- Use `python3 claim_issue.py list` to see what's taken
 
 ---
 
