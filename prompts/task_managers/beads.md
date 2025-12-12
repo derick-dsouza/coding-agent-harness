@@ -103,75 +103,59 @@ bd list --status closed --json | jq 'length'
 
 ---
 
-### BEADS TASK DECOMPOSITION (IMPORTANT)
+### BEADS TASK DECOMPOSITION (IMPORTANT - FOR CODING AGENTS)
 
-**When to Create Sub-Issues:**
+**🚨 CRITICAL: Coding agents NEVER create issues directly!**
 
-If you discover during implementation that a task is:
+If you discover during implementation that a task is too large:
 - **Too Large** - Will take more than one focused session to complete properly
 - **Has Hidden Complexity** - Reveals multiple distinct pieces of work
 - **Blocked by Prerequisites** - Needs foundational work done first
 - **Affects Multiple Files/Areas** - Should be split by area of concern
 
-**DO NOT** try to rush through or cut corners. Instead, decompose into atomic tasks:
+**You MUST create a DECOMPOSITION REQUEST instead of creating issues yourself.**
+
+This ensures proper coordination - the initializer agent will create the sub-issues.
 
 ```bash
-# Create sub-issue for discovered work
-bd create "Sub-task: [Specific piece of work]" \
-  --description "## Context
-Discovered while working on PARENT_ISSUE_ID.
+# SET THIS FIRST
+export HARNESS_DIR="/Users/derickdsouza/Projects/development/coding-agent-harness"
 
-## Specific Work Required
-[Detailed description of this atomic task]
+# Request decomposition instead of creating issues
+python3 $HARNESS_DIR/claim_issue.py request-decomposition ISSUE_ID \
+  "Task too large - 76 errors across 8 files with different root causes" \
+  "Fix useAcceptRejectDealForm return type,Fix useBankDealFormatting implicit any,Fix useClipboard generic constraints"
 
-## Files to Modify
-- path/to/file1.ts
-- path/to/file2.ts
+# Then update the issue to note decomposition was requested
+bd comment ISSUE_ID "Decomposition requested - task too large for single session. See decomposition_requests/ for details."
 
-## Acceptance Criteria
-- [ ] Specific testable criterion 1
-- [ ] Specific testable criterion 2
-
-## Parent Issue
-PARENT_ISSUE_ID" \
-  --priority 2 \
-  --type task \
-  --labels sub-task,RELEVANT_PHASE_LABEL
-
-# Update parent issue to note the decomposition
-bd update PARENT_ISSUE_ID --description "$(bd show PARENT_ISSUE_ID --json | jq -r '.[0].description')\n\n---\n**Decomposed:** This issue was split into sub-tasks:\n- SUB_ISSUE_ID_1: [description]\n- SUB_ISSUE_ID_2: [description]"
+# Release your claim and move to another issue
+python3 $HARNESS_DIR/claim_issue.py release ISSUE_ID
 ```
 
-**Decomposition Guidelines:**
+**Decomposition Request Guidelines:**
 
 | Scenario | Action |
 |----------|--------|
-| Issue has 5+ files to modify | Split by file or logical group |
-| Issue has multiple unrelated changes | Create separate issues for each |
-| Found prerequisite work needed | Create blocking issue, do it first |
-| Scope expanded during analysis | Create new issues for expanded scope |
-| Error count higher than expected | Split by error category or file |
+| Issue has 5+ files to modify | Request decomposition by file/group |
+| Issue has multiple unrelated changes | Request separate issues for each |
+| Found prerequisite work needed | Request blocking issue, pick different work |
+| Scope expanded during analysis | Request new issues for expanded scope |
+| Error count higher than expected | Request split by error category or file |
 
-**Example - TypeScript Fix Decomposition:**
-```bash
-# Original issue: "Fix TypeScript errors in composables"
-# Discovery: 76 errors across 8 files with different root causes
+**What Happens After Request:**
+1. Your request is saved to `.autocode-workers/decomposition_requests/`
+2. The initializer agent will pick it up and create proper sub-issues
+3. You can move on to work on a different issue
+4. Don't wait for decomposition - pick another task
 
-# Create atomic sub-issues:
-bd create "Fix useAcceptRejectDealForm return type interface" \
-  --description "Add missing properties to UseAcceptRejectDealFormReturn interface..." \
-  --priority 2 --type task --labels sub-task,typescript-foundation
+**Why Coding Agents Don't Create Issues:**
+- Prevents duplicate issues from multiple workers
+- Ensures consistent issue quality (initializer's job)
+- Proper dependency tracking
+- Clean separation of concerns
 
-bd create "Fix useBankDealFormatting implicit any types" \
-  --description "Add explicit type annotations to all function parameters..." \
-  --priority 2 --type task --labels sub-task,typescript-foundation
-
-# Mark original as decomposed (not closed, as work isn't done)
-bd update ORIGINAL_ID --status open
-bd label add ORIGINAL_ID decomposed
-```
-
-**Remember:** Creating sub-issues is NOT failure - it's proper engineering. A well-decomposed task list is better than a rushed, incomplete implementation.
+**Remember:** Requesting decomposition is NOT failure - it's proper engineering. The initializer agent is better equipped to create well-structured sub-issues.
 
 ---
 

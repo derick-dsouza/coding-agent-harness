@@ -36,6 +36,10 @@ HEARTBEAT_TIMEOUT_SECONDS = 90  # Worker considered dead if no heartbeat for thi
 CLAIM_STALE_TIMEOUT_SECONDS = 120  # Claims from dead workers expire after this
 
 
+# Initialization lock timeout (longer than regular claims since init takes time)
+INIT_LOCK_TIMEOUT_SECONDS = 300  # 5 minutes for initialization
+
+
 class WorkerCoordinator:
     """
     Coordinates multiple autocode workers in the same project directory.
@@ -44,6 +48,7 @@ class WorkerCoordinator:
     - Each worker registers with a unique ID and maintains a heartbeat
     - Issues are claimed atomically using O_CREAT | O_EXCL
     - Stale claims from dead workers are automatically cleaned up
+    - Initialization lock ensures only one worker creates/modifies issues
     
     Usage:
         coordinator = WorkerCoordinator(project_dir)
@@ -53,6 +58,12 @@ class WorkerCoordinator:
         heartbeat_task = asyncio.create_task(coordinator.heartbeat_loop())
         
         try:
+            # Check if we should run initialization
+            if coordinator.try_claim_init_lock():
+                # Only this worker will do initialization
+                run_initializer()
+                coordinator.release_init_lock()
+            
             # Claim an issue before working on it
             if coordinator.try_claim_issue("ISSUE-123"):
                 # Work on the issue...
@@ -74,11 +85,14 @@ class WorkerCoordinator:
         self.workers_dir = self.project_dir / ".autocode-workers"
         self.claims_dir = self.workers_dir / "claims"
         self.files_dir = self.workers_dir / "files"
+        self.decomp_dir = self.workers_dir / "decomposition_requests"
+        self.init_lock_file = self.workers_dir / "init.lock"
         self.lock_file = self.workers_dir / f"worker-{self.worker_id}.lock"
         self.start_time = time.time()
         self.claimed_issues: List[str] = []
         self.claimed_files: List[str] = []
         self._registered = False
+        self._holds_init_lock = False
     
     def _generate_worker_id(self) -> str:
         """Generate a unique worker ID."""
@@ -97,11 +111,13 @@ class WorkerCoordinator:
         self.workers_dir.mkdir(exist_ok=True)
         self.claims_dir.mkdir(exist_ok=True)
         self.files_dir.mkdir(exist_ok=True)
+        self.decomp_dir.mkdir(exist_ok=True)
         self._update_heartbeat()
         self._registered = True
         
-        # Clean up stale workers, claims, and file locks on startup
+        # Clean up stale workers, claims, file locks, and init lock on startup
         self._cleanup_stale_workers()
+        self._cleanup_stale_init_lock()
         self._cleanup_stale_claims()
         self._cleanup_stale_file_locks()
         
@@ -198,6 +214,34 @@ class WorkerCoordinator:
                     lock_file.unlink()
                 except:
                     pass
+    
+    def _cleanup_stale_init_lock(self) -> None:
+        """Remove init lock if it's stale (worker dead or timeout exceeded)."""
+        if not self.init_lock_file.exists():
+            return
+        
+        try:
+            data = json.loads(self.init_lock_file.read_text())
+            lock_worker = data.get("worker_id")
+            lock_time = data.get("locked_at", 0)
+            lock_age = time.time() - lock_time
+            
+            # Check if lock is too old
+            if lock_age > INIT_LOCK_TIMEOUT_SECONDS:
+                self.init_lock_file.unlink()
+                print(f"🧹 Released stale init lock (timeout): {lock_worker}")
+                return
+            
+            # Check if worker is still alive
+            active_ids = {w["worker_id"] for w in self.get_active_workers()}
+            if lock_worker not in active_ids:
+                self.init_lock_file.unlink()
+                print(f"🧹 Released stale init lock (dead worker): {lock_worker}")
+        except (json.JSONDecodeError, IOError):
+            try:
+                self.init_lock_file.unlink()
+            except:
+                pass
     
     def _cleanup_stale_claims(self) -> None:
         """Remove claim files from dead workers."""
@@ -641,12 +685,248 @@ class WorkerCoordinator:
         
         return claims
     
+    # =========================================================================
+    # INITIALIZATION LOCK - Ensures only one worker creates/modifies issues
+    # =========================================================================
+    
+    def try_claim_init_lock(self) -> bool:
+        """
+        Attempt to claim the initialization lock.
+        
+        Only one worker should create/modify BEADS issues from the spec.
+        This lock ensures that only one worker runs initialization at a time.
+        
+        Returns:
+            True if lock claimed, False if another worker holds it
+        """
+        if not self._registered:
+            raise RuntimeError("Worker not registered. Call register() first.")
+        
+        # If we already hold it, return True
+        if self._holds_init_lock:
+            return True
+        
+        # Clean up stale lock first
+        self._cleanup_stale_init_lock()
+        
+        # Check if lock exists and is held by active worker
+        if self.init_lock_file.exists():
+            try:
+                data = json.loads(self.init_lock_file.read_text())
+                lock_worker = data.get("worker_id")
+                
+                if lock_worker == self.worker_id:
+                    self._holds_init_lock = True
+                    return True
+                
+                # Another worker holds it
+                return False
+            except (json.JSONDecodeError, IOError):
+                # Corrupted, try to remove and claim
+                try:
+                    self.init_lock_file.unlink()
+                except:
+                    return False
+        
+        # Attempt atomic claim
+        try:
+            fd = os.open(
+                str(self.init_lock_file),
+                os.O_CREAT | os.O_EXCL | os.O_WRONLY,
+                0o644
+            )
+            lock_data = json.dumps({
+                "worker_id": self.worker_id,
+                "locked_at": time.time(),
+                "pid": os.getpid(),
+                "purpose": "initialization",
+            })
+            os.write(fd, lock_data.encode())
+            os.close(fd)
+            
+            self._holds_init_lock = True
+            print(f"🔒 Claimed initialization lock (worker: {self.worker_id})")
+            return True
+            
+        except FileExistsError:
+            return False
+        except OSError as e:
+            print(f"⚠️  Failed to claim init lock: {e}")
+            return False
+    
+    def release_init_lock(self) -> None:
+        """Release the initialization lock."""
+        if not self._holds_init_lock:
+            return
+        
+        try:
+            if self.init_lock_file.exists():
+                data = json.loads(self.init_lock_file.read_text())
+                if data.get("worker_id") == self.worker_id:
+                    self.init_lock_file.unlink()
+                    print(f"🔓 Released initialization lock (worker: {self.worker_id})")
+        except (json.JSONDecodeError, IOError, OSError):
+            pass
+        
+        self._holds_init_lock = False
+    
+    def is_init_locked(self) -> Optional[str]:
+        """
+        Check if initialization lock is held.
+        
+        Returns:
+            Worker ID holding the lock, or None if not locked
+        """
+        self._cleanup_stale_init_lock()
+        
+        if not self.init_lock_file.exists():
+            return None
+        
+        try:
+            data = json.loads(self.init_lock_file.read_text())
+            return data.get("worker_id")
+        except (json.JSONDecodeError, IOError):
+            return None
+    
+    # =========================================================================
+    # DECOMPOSITION REQUESTS - Coding agents request issue breakdown
+    # =========================================================================
+    
+    def request_decomposition(
+        self, 
+        issue_id: str, 
+        reason: str, 
+        suggested_breakdown: List[str],
+        current_error_count: Optional[int] = None
+    ) -> bool:
+        """
+        Request that an issue be decomposed into smaller tasks.
+        
+        Coding agents should call this when they find a task is too large
+        or complex to complete in one session. The initializer agent will
+        process these requests and create sub-issues.
+        
+        Args:
+            issue_id: The issue that needs decomposition
+            reason: Why this issue needs to be broken down
+            suggested_breakdown: List of suggested sub-tasks
+            current_error_count: Optional current error count for context
+        
+        Returns:
+            True if request was created successfully
+        """
+        if not self._registered:
+            raise RuntimeError("Worker not registered. Call register() first.")
+        
+        safe_id = issue_id.replace("/", "_").replace("\\", "_")
+        request_file = self.decomp_dir / f"{safe_id}.request"
+        
+        request_data = {
+            "issue_id": issue_id,
+            "requested_by": self.worker_id,
+            "requested_at": time.time(),
+            "reason": reason,
+            "suggested_breakdown": suggested_breakdown,
+            "current_error_count": current_error_count,
+            "status": "pending",
+        }
+        
+        try:
+            request_file.write_text(json.dumps(request_data, indent=2))
+            print(f"📝 Created decomposition request for {issue_id}")
+            return True
+        except (IOError, OSError) as e:
+            print(f"⚠️  Failed to create decomposition request: {e}")
+            return False
+    
+    def get_pending_decomposition_requests(self) -> List[Dict[str, Any]]:
+        """
+        Get all pending decomposition requests.
+        
+        Returns:
+            List of request dicts with issue_id, reason, suggested_breakdown, etc.
+        """
+        requests = []
+        
+        if not self.decomp_dir.exists():
+            return requests
+        
+        for request_file in self.decomp_dir.glob("*.request"):
+            try:
+                data = json.loads(request_file.read_text())
+                if data.get("status") == "pending":
+                    requests.append(data)
+            except (json.JSONDecodeError, IOError):
+                continue
+        
+        return requests
+    
+    def mark_decomposition_processed(self, issue_id: str, created_issues: List[str]) -> None:
+        """
+        Mark a decomposition request as processed.
+        
+        Args:
+            issue_id: The original issue that was decomposed
+            created_issues: List of new issue IDs created from decomposition
+        """
+        safe_id = issue_id.replace("/", "_").replace("\\", "_")
+        request_file = self.decomp_dir / f"{safe_id}.request"
+        
+        if not request_file.exists():
+            return
+        
+        try:
+            data = json.loads(request_file.read_text())
+            data["status"] = "processed"
+            data["processed_at"] = time.time()
+            data["processed_by"] = self.worker_id
+            data["created_issues"] = created_issues
+            request_file.write_text(json.dumps(data, indent=2))
+        except (json.JSONDecodeError, IOError):
+            pass
+    
+    def clear_processed_decomposition_requests(self) -> int:
+        """
+        Remove all processed decomposition requests.
+        
+        Returns:
+            Number of requests cleared
+        """
+        cleared = 0
+        
+        if not self.decomp_dir.exists():
+            return cleared
+        
+        for request_file in self.decomp_dir.glob("*.request"):
+            try:
+                data = json.loads(request_file.read_text())
+                if data.get("status") == "processed":
+                    request_file.unlink()
+                    cleared += 1
+            except (json.JSONDecodeError, IOError):
+                continue
+        
+        return cleared
+    
+    def has_pending_work_for_initializer(self) -> bool:
+        """
+        Check if there's work that requires the initializer agent.
+        
+        Returns:
+            True if there are pending decomposition requests
+        """
+        return len(self.get_pending_decomposition_requests()) > 0
+    
     def cleanup(self) -> None:
         """
         Clean up this worker's registration and claims.
         
         Call this when shutting down gracefully.
         """
+        # Release init lock if we hold it
+        if self._holds_init_lock:
+            self.release_init_lock()
+        
         # Release all our claims (this also releases associated files)
         for issue_id in list(self.claimed_issues):
             self.release_claim(issue_id)

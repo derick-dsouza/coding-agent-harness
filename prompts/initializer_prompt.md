@@ -86,8 +86,10 @@ For other task managers (GitHub Issues, BEADS), caching may work differently or 
 **BEADS Initializer Workflow:**
 1. **Skip team/project setup** - BEADS is project-local, no teams/projects to create
 2. **Check for existing issues:** `bd list --status open --json`
-3. **Create issues directly:** Use `bd create` for each feature from app_spec.txt
-4. **Save state:** Create `.task_project.json`
+3. **Check for decomposition requests:** `python3 $HARNESS_DIR/claim_issue.py list-decomposition-requests`
+4. **Create issues directly:** Use `bd create` for each feature from app_spec.txt
+5. **Process decomposition requests:** Create sub-issues for any pending requests
+6. **Save state:** Create `.task_project.json`
 
 **Quick Reference:**
 ```bash
@@ -97,6 +99,34 @@ bd list --json | jq 'length'                    # Count total issues
 ```
 
 **Important:** BEADS has NO rate limits - you can create issues rapidly!
+
+### 🚨 INITIALIZATION LOCK (MULTI-WORKER CRITICAL!)
+
+**Only ONE worker should create/modify issues at a time.**
+
+Before doing ANY issue creation or modification:
+
+```bash
+export HARNESS_DIR="/Users/derickdsouza/Projects/development/coding-agent-harness"
+
+# 1. Try to claim the initialization lock
+python3 $HARNESS_DIR/claim_issue.py init-lock
+
+# If this FAILS (exit code 1), another worker is initializing
+# → Skip initialization, go directly to coding work
+
+# If this SUCCEEDS (exit code 0), you hold the lock
+# → Proceed with issue creation
+# → When done: python3 $HARNESS_DIR/claim_issue.py init-release
+```
+
+**Workflow:**
+1. Try `init-lock` → if fails, skip to coding (another worker is initializing)
+2. If succeeded, check for pending decomposition requests
+3. Process any decomposition requests (create sub-issues)
+4. Create any new issues from spec changes
+5. Release lock: `init-release`
+6. Proceed to coding work
 
 ### FIRST: Check for Existing State (CRITICAL - Prevents Duplicates)
 
@@ -196,6 +226,57 @@ Before creating anything, check if setup is already done:
    }
    ```
    This ensures that if the session crashes, the next run won't create duplicates.
+
+### CRITICAL TASK: Process Decomposition Requests (BEFORE Creating Issues)
+
+**Check for pending decomposition requests from coding agents:**
+
+```bash
+export HARNESS_DIR="/Users/derickdsouza/Projects/development/coding-agent-harness"
+
+# Check if there are pending requests
+python3 $HARNESS_DIR/claim_issue.py has-pending-work
+
+# If yes, list them
+python3 $HARNESS_DIR/claim_issue.py list-decomposition-requests
+```
+
+**For each pending decomposition request:**
+
+1. **Read the request details** - issue_id, reason, suggested_breakdown
+2. **Create sub-issues** for each suggested breakdown item:
+   ```bash
+   # For BEADS:
+   bd create "Sub-task: [breakdown item description]" \
+     --description "## Context
+   Split from PARENT_ISSUE_ID: [reason from request]
+   
+   ## Specific Work
+   [Expand on the breakdown item]
+   
+   ## Parent Issue
+   PARENT_ISSUE_ID" \
+     --priority 2 --type task --labels sub-task
+   ```
+
+3. **Update the parent issue:**
+   ```bash
+   bd comment PARENT_ISSUE_ID "Decomposed into sub-issues: [list of new issue IDs]"
+   bd label add PARENT_ISSUE_ID decomposed
+   ```
+
+4. **Mark the request as processed** (via Python):
+   ```python
+   from worker_coordinator import WorkerCoordinator
+   coord = WorkerCoordinator(project_dir)
+   coord.register()
+   coord.mark_decomposition_processed("PARENT_ISSUE_ID", ["SUB1", "SUB2", "SUB3"])
+   coord.cleanup()
+   ```
+
+**After processing all requests, proceed to create new issues if needed.**
+
+---
 
 ### CRITICAL TASK: Create Issues (or Resume Issue Creation)
 

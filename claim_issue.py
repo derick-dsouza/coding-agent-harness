@@ -12,6 +12,16 @@ Usage (from project directory):
     python3 /path/to/harness/claim_issue.py check ISSUE_ID
     python3 /path/to/harness/claim_issue.py list
     python3 /path/to/harness/claim_issue.py files FILE1 [FILE2 ...]
+    
+    # Initialization lock (only one worker can initialize at a time)
+    python3 /path/to/harness/claim_issue.py init-lock
+    python3 /path/to/harness/claim_issue.py init-release
+    python3 /path/to/harness/claim_issue.py init-check
+    
+    # Decomposition requests (coding agents request issue breakdown)
+    python3 /path/to/harness/claim_issue.py request-decomposition ISSUE_ID "reason" "subtask1,subtask2,subtask3"
+    python3 /path/to/harness/claim_issue.py list-decomposition-requests
+    python3 /path/to/harness/claim_issue.py has-pending-work
 
 The script automatically finds the project directory by looking for
 .autocode-workers, .beads, .task_project.json, or .git markers.
@@ -155,6 +165,118 @@ def cmd_files(files: list[str]):
         sys.exit(1)
 
 
+def cmd_init_lock():
+    """Try to claim the initialization lock."""
+    project_dir = get_project_dir()
+    coord = WorkerCoordinator(project_dir)
+    coord.register()
+    
+    if coord.try_claim_init_lock():
+        print("OK: Claimed initialization lock")
+        print(f"    Worker ID: {coord.worker_id}")
+        # Don't cleanup - keep the lock active
+        sys.exit(0)
+    else:
+        holder = coord.is_init_locked()
+        print(f"LOCKED: Initialization lock held by worker {holder}")
+        coord.cleanup()
+        sys.exit(1)
+
+
+def cmd_init_release():
+    """Release the initialization lock."""
+    project_dir = get_project_dir()
+    coord = WorkerCoordinator(project_dir)
+    coord.register()
+    coord._holds_init_lock = True  # Assume we hold it to release
+    coord.release_init_lock()
+    coord.cleanup()
+    print("OK: Released initialization lock")
+
+
+def cmd_init_check():
+    """Check if initialization lock is held."""
+    project_dir = get_project_dir()
+    coord = WorkerCoordinator(project_dir)
+    coord.register()
+    
+    holder = coord.is_init_locked()
+    coord.cleanup()
+    
+    if holder:
+        print(f"LOCKED: Initialization lock held by worker {holder}")
+        sys.exit(1)
+    else:
+        print("AVAILABLE: Initialization lock is free")
+        sys.exit(0)
+
+
+def cmd_request_decomposition(issue_id: str, reason: str, suggested_breakdown: str):
+    """Request decomposition of an issue."""
+    project_dir = get_project_dir()
+    coord = WorkerCoordinator(project_dir)
+    coord.register()
+    
+    # Parse suggested_breakdown as comma-separated list
+    breakdown_list = [s.strip() for s in suggested_breakdown.split(',') if s.strip()]
+    
+    if coord.request_decomposition(issue_id, reason, breakdown_list):
+        print(f"OK: Created decomposition request for {issue_id}")
+        print(f"    Reason: {reason}")
+        print(f"    Suggested breakdown: {len(breakdown_list)} sub-tasks")
+        for i, item in enumerate(breakdown_list, 1):
+            print(f"      {i}. {item}")
+    else:
+        print(f"ERROR: Failed to create decomposition request")
+        sys.exit(1)
+    
+    coord.cleanup()
+
+
+def cmd_list_decomposition_requests():
+    """List pending decomposition requests."""
+    project_dir = get_project_dir()
+    coord = WorkerCoordinator(project_dir)
+    coord.register()
+    
+    requests = coord.get_pending_decomposition_requests()
+    coord.cleanup()
+    
+    if not requests:
+        print("No pending decomposition requests")
+    else:
+        print(f"Pending decomposition requests ({len(requests)}):")
+        for req in requests:
+            issue_id = req.get('issue_id', '?')
+            reason = req.get('reason', '?')
+            breakdown = req.get('suggested_breakdown', [])
+            print(f"\n  {issue_id}:")
+            print(f"    Reason: {reason}")
+            print(f"    Suggested breakdown ({len(breakdown)} items):")
+            for item in breakdown:
+                print(f"      - {item}")
+
+
+def cmd_has_pending_work():
+    """Check if there's pending work for the initializer."""
+    project_dir = get_project_dir()
+    coord = WorkerCoordinator(project_dir)
+    coord.register()
+    
+    has_work = coord.has_pending_work_for_initializer()
+    requests = coord.get_pending_decomposition_requests()
+    coord.cleanup()
+    
+    if has_work:
+        print(f"PENDING: {len(requests)} decomposition request(s) need processing")
+        for req in requests:
+            print(f"  - {req.get('issue_id', '?')}")
+        sys.exit(0)
+    else:
+        print("NONE: No pending work for initializer")
+        sys.exit(1)
+
+
 def main():
     if len(sys.argv) < 2:
         print(__doc__)
@@ -190,6 +312,27 @@ def main():
             print("Usage: claim_issue.py files FILE1 [FILE2 ...]")
             sys.exit(1)
         cmd_files(sys.argv[2:])
+    
+    elif cmd == 'init-lock':
+        cmd_init_lock()
+    
+    elif cmd == 'init-release':
+        cmd_init_release()
+    
+    elif cmd == 'init-check':
+        cmd_init_check()
+    
+    elif cmd == 'request-decomposition':
+        if len(sys.argv) < 5:
+            print("Usage: claim_issue.py request-decomposition ISSUE_ID \"reason\" \"subtask1,subtask2,subtask3\"")
+            sys.exit(1)
+        cmd_request_decomposition(sys.argv[2], sys.argv[3], sys.argv[4])
+    
+    elif cmd == 'list-decomposition-requests':
+        cmd_list_decomposition_requests()
+    
+    elif cmd == 'has-pending-work':
+        cmd_has_pending_work()
     
     else:
         print(f"Unknown command: {cmd}")
